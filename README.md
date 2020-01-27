@@ -1,8 +1,5 @@
-# pidcalib
+# pidcalib : The efficient processing of LHCb/PidCalib PIC calibration data  using [ostap] project 
 
-LHCb/PidCalib processing using `ostap` project 
-
-q
 Dependencies
 ------------
 
@@ -45,9 +42,7 @@ In this mode, a powerfull [pathos]-based parallelization is available, activated
 pid_calib2.py --parallel 
 ```
 
-If `/eos/lhcb/grid` is accessible directly, but inptu data are requested from the Grid, the optional conversion (flag `--useeo`) is available 
-
-
+If `/eos/lhcb/grid` is accessible directly, but inptu data are requested from the Grid, the optional conversion using the comman line flag `--useeos` is possible. It opens a way for the parallel processing.
 
 
 [ostap]: https://github.com/OstapHEP/ostap
