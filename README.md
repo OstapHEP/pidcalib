@@ -1,12 +1,12 @@
 # pidcalib : The efficient processing of LHCb/PidCalib PIC calibration data  using [ostap] project 
 
-Dependencies
-------------
+
+## Dependencies
 
 - _mandatory_: [ostap] 
 
-Features
---------
+## Features
+
 - The project allows to get 1D, 2D or 3D efficiency historgams for particle identification using the calibraton samples 
 - Calibration samples can be accessed either from CERN eos or via GRID 
   - the first way requires read access to `/eos/lhcb/grid` partition 
@@ -15,8 +15,9 @@ Features
 - The calbration samples can be processed in parallel using [pathos]-based parallelisation
 - The output histograms and useful processing information are placed in the outptu database, default is `PIDCALIB.db`   
 
-Usage
------
+## Usage
+
+### Run II processing 
 
 To use this function a helper script needs to be created, see example in [examples] directory.
 The script to be execute from command-line 
@@ -44,6 +45,8 @@ pid_calib2.py --parallel
 
 - If `/eos/lhcb/grid` is accessible directly, but input data are requested from the Grid, the optional conversion using the comman line flag `--useeos` is possible. It opens a way for the parallel processing.
 
+### Run I processing 
+ 
 
 
 [ostap]: https://github.com/OstapHEP/ostap
