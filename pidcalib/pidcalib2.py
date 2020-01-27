@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # =============================================================================
-## @file  PidCalib2.py
+## @file  pidcalib2.py
 #  Module to run LHCb/PIDCalib machinery with ostap for Run II data
 #  @see https://twiki.cern.ch/twiki/bin/view/LHCbPhysics/ChargedPID
 #
@@ -11,15 +11,6 @@
 #    the input data are taken from GRID,
 #    otherwise a direct access to '/eos' is used.
 #
-#  There are two intefaces for "processors" based on 
-#  - "old", based <code>project</code>/<code>pproject</code> 
-#  - "new", based on <code>ROOT::RDataFrame</code>
-#
-#  The firts one can be very efficient due to parallelization,
-#  but it hangs for some input grid/remote-files.  It is OK for eos-based files.
-# 
-#  The second one is slower, but safe and robust: Iit works both for local and remote files.
-# 
 # =============================================================================
 """ Module to run LHCb/PIDCalib machinery for RUN-II data
 - see https://twiki.cern.ch/twiki/bin/view/LHCbPhysics/ChargedPID
@@ -34,24 +25,20 @@ __all__ = (
     'PARTICLE_1D'   ,  ## helper object to produce 1D efficiency histogram
     'PARTICLE_2D'   ,  ## helper object to produce 2D efficiency histogram
     'PARTICLE_3D'   ,  ## helper object to produce 3D efficiency histogram
-    'DF_PARTICLE_1D',  ## helper object to produce 1D efficiency histogram
-    'DF_PARTICLE_2D',  ## helper object to produce 2D efficiency histogram
-    'DF_PARTICLE_3D',  ## helper object to produce 3D efficiency histogram
 )
 # =============================================================================
 import ROOT, os, abc 
 # =============================================================================
 from  ostap.logger.logger import getLogger, setLogging
-if '__main__' == __name__: logger = getLogger ( 'ostap.PidCalib2' )
+if '__main__' == __name__: logger = getLogger ( 'ostap.pidcalib2' )
 else                     : logger = getLogger ( __name__          )
 # =============================================================================
 import ostap.core.pyrouts
 import ostap.trees.trees
 import ostap.trees.cuts 
 import ostap.io.zipshelve as DBASE
-
 # =============================================================================
-# PIDCALIB data samples (Bookeeping DB-paths)
+# PIDCALIB data samples (LHCb Bookeeping DB-paths)
 # =============================================================================
 bookkeeping_paths = {
     ## 2016, v4r1 
@@ -111,11 +98,14 @@ samples  = {
     }
     }
 # =============================================================================
+## knowno species of particles 
 SPECIES   = ( 'EP'  , 'EM'   ,
               'KP'  , 'KM'   ,
               'MuP' , 'MuM'  , 
               'PiP' , 'PiM'  ,
               'P'   , 'Pbar' )
+# =============================================================================
+## calibration samples 
 PARTICLES = {
     'v4r1' : {
     2015 : {
@@ -206,12 +196,12 @@ muons = set()
 pions = set()
 protons = set()
 for v in PARTICLES:
-    for y in PARTICLES[v]:
-        electrons |= set(PARTICLES[v][y].get('ELECTRONS', []))
-        kaons |= set(PARTICLES[v][y].get('KAONS', []))
-        muons |= set(PARTICLES[v][y].get('MUONS', []))
-        pions |= set(PARTICLES[v][y].get('PIONS', []))
-        protons |= set(PARTICLES[v][y].get('PROTONS', []))
+    for y in PARTICLES [ v ]:
+        electrons |= set ( PARTICLES [ v ] [ y ] . get ( 'ELECTRONS' , [] ) )
+        kaons     |= set ( PARTICLES [ v ] [ y ] . get ( 'KAONS'     , [] ) )
+        muons     |= set ( PARTICLES [ v ] [ y ] . get ( 'MUONS'     , [] ) )
+        pions     |= set ( PARTICLES [ v ] [ y ] . get ( 'PIONS'     , [] ) )
+        protons   |= set ( PARTICLES [ v ] [ y ] . get ( 'PROTONS'   , [] ) )
  
 e_plus      = tuple ( electrons )
 e_minus     = tuple ( e.replace ('_EP', '_EM'  ) for e in e_plus     )
@@ -225,9 +215,9 @@ protons     = tuple ( protons   )
 antiprotons = tuple ( p + 'bar' for p in protons)
 
 for v in PARTICLES:
-    for y in PARTICLES[v]:
-        for k in PARTICLES[v][y]:
-            ps = set(PARTICLES[v][y][k])
+    for y in PARTICLES [ v ] :
+        for k in PARTICLES [ v ] [ y ] :
+            ps = set ( PARTICLES [ v ] [ y ] [ k ] )
             if   'ELECTRONS' == k : ps |= set ( p.replace ( '_EP'  , '_EM'  ) for p in ps )
             elif 'KAONS'     == k : ps |= set ( p.replace ( '_KP'  , '_KM'  ) for p in ps )
             elif 'MUONS'     == k : ps |= set ( p.replace ( '_MuP' , '_MuM' ) for p in ps )
@@ -246,9 +236,9 @@ def make_parser():
     import argparse, os, sys
 
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        prog=os.path.basename(sys.argv[0]),
-        description="""Make performance histograms for a given:
+        formatter_class = argparse.RawDescriptionHelpFormatter,
+        prog            = os.path.basename ( sys.argv[0] ) ,
+        description     = """Make performance histograms for a given:
         a) data taking period <YEAR>        ( e.g. 2015    )
         b) magnet polarity    <MAGNET>      ( 'MagUp' or 'MagDown' or 'Both' )
         c) particle type      <PARTICLE>    ( 'K', 'P' , 'Pi' , 'e' , 'Mu'   )
@@ -272,10 +262,10 @@ def make_parser():
     parser.add_argument(
         '-y',
         '--year',
-        metavar='<YEAR>',
-        type=int,
-        choices=(2015, 2016, 2017, 2018),
-        help="Data taking period")
+        metavar = '<YEAR>',
+        type    = int,
+        choices = ( 2015 , 2016 , 2017 , 2018 ),
+        help    = "Data taking period")
 
     parser.add_argument(
         '-x'            ,
@@ -1297,6 +1287,7 @@ if '__main__' == __name__ :
     from ostap.utils.docme import docme
     docme ( __name__ , logger = logger )
 
+    run_pid_calib ( None , [ '-h'] ) 
 # =============================================================================
 ##                                                                      The END
 # =============================================================================
