@@ -1,0 +1,270 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+###############################################################################
+# (c) Copyright 2000-2019 CERN for the benefit of the LHCb Collaboration      #
+#                                                                             #
+# This software is distributed under the terms of the GNU General Public      #
+# Licence version 3 (GPL Version 3), copied verbatim in the file "COPYING".   #
+#                                                                             #
+# In applying this licence, CERN does not waive the privileges and immunities #
+# granted to it by virtue of its status as an Intergovernmental Organization  #
+# or submit itself to any jurisdiction.                                       #
+###############################################################################
+# ==========================================================================================
+## @file get_files_from_BK.py
+#  Simple Dirac-based script to get the files from certain path in Bookkkeeping
+#
+#  @date   2017-05-11
+#  @author Vanya BELYAEV Ivan.Belyaev@itep.ru
+# =============================================================================
+"""
+Simple DIRAC-based script to get the files from certain path in Bookkkeeping
+"""
+# =============================================================================
+__author__ = 'Vanya BELYAEV Ivan.Belyaev@itep.ru'
+__date__ = '2017-05-11'
+# =============================================================================
+import DIRAC, sys
+from DIRAC.Core.Base import Script
+from LHCbDIRAC.DataManagementSystem.Client.DMScript import DMScript
+from DIRAC.DataManagementSystem.Utilities.DMSHelpers import DMSHelpers, resolveSEGroup
+
+
+# =============================================================================
+class Mute(object):
+    def __init__(self, out=True, err=False):
+        self._out = out
+        self._err = err
+
+    def __enter__(self):
+        #
+        ## helper class to define empty stream
+        class Silent(object):
+            def write(self, *args, **kwards):
+                pass
+
+        import sys
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
+
+        if self._out:
+            sys.stdout.flush()
+            sys.stdout = Silent()
+        if self._err:
+            sys.stderr.flush()
+            sys.stderr = Silent()
+
+        return self
+
+    def __exit__(self, *_):
+
+        import sys
+        sys.stdout = self.stdout
+        sys.stderr = self.stderr
+
+
+# some non-elegant treatment Dirac's scripting machinery
+def _setFirst(self, arg):
+    if arg: self.options['First'] = int(arg)
+    else: self.options['First'] = 0
+    return DIRAC.S_OK()
+
+
+def _setLast(self, arg):
+    if arg: self.options['Last'] = int(arg)
+    else: self.options['Last'] = 1000000
+    return DIRAC.S_OK()
+
+
+def _setMax(self, arg):
+    if arg: self.options['Max'] = int(arg)
+    else: self.options['Max'] = 10000000
+    return DIRAC.S_OK()
+
+
+def _setPFN(self, arg):
+    if arg.upper() in ('DV', 'DAVINCI'): self.options['PFN'] = 'DaVinci'
+    elif arg.upper() in ('TRUE', '1'): self.options['PFN'] = True
+    elif arg.upper() in ('FALSE', '0'): self.options['PFN'] = False
+    else:
+        self.options['PFN'] = True if arg else False
+
+    return DIRAC.S_OK()
+
+
+DMScript._setFirst = _setFirst
+DMScript._setLast = _setLast
+DMScript._setMax = _setMax
+DMScript._setPFN = _setPFN
+
+# prepare the script
+dmScript = DMScript()
+dmScript.registerSiteSwitches()
+# add new properties
+Script.registerSwitch('f:', 'First=', '   The index fo the first file',
+                      dmScript._setFirst)
+Script.registerSwitch('l:', 'Last=', '   The index of the last file',
+                      dmScript._setLast)
+Script.registerSwitch('m:', 'Max=', '   Maximum number of files',
+                      dmScript._setMax)
+Script.registerSwitch('a:', 'AccessURLS=',
+                      '   Return the access URLS instead of LFN',
+                      dmScript._setPFN)
+Script.setUsageMessage('\n'.join(
+    __doc__.split('\n') + [
+        'Usage:',
+        '  %s [option|cfgfile] ... PATH' %
+        Script.scriptName, 'Arguments:', '  PATH:      Path in Bookkeeping DB'
+    ]))
+
+Script.parseCommandLine(ignoreErrors=True)
+
+args = Script.getPositionalArgs()
+
+merged = False 
+if 2 == len ( args ) and args[0].endswith('/Real') and args[1].startswith ( 'Data/' ) :
+    args = [ ' '.join ( args ) ]
+    merged = True 
+
+if len(args) != 1:
+    print '## ARGS:' , args , '[merged=%s]' % merged 
+    Script.showHelp()
+    DIRAC.exit(1)
+
+path = args[0]
+
+seList = dmScript.getOption('SEs', [])
+sites = dmScript.getOption('Sites', [])
+
+if seList:
+    ## keep only known SEs
+    allses = DMSHelpers().getStorageElements()
+    nl = set()
+    for s in seList:
+        if s in allses: nl.add(s)
+    seList = list(nl)
+
+if not seList:
+    if ['ALL'] == sites or not sites:
+        dmsHelper = DMSHelpers()
+        result = dmsHelper.getShortSiteNames()
+        sites = [k for k in result]
+
+if sites and not seList:
+    siteSEs = []
+    dmsHelper = DMSHelpers()
+    for site in sites:
+        siteSEs += dmsHelper.getSEsForSite(site).get('Value', [])
+    ## remove  archives from the list
+    siteSEs = [se for se in siteSEs if not se.endswith('-ARCHIVE')]
+    if seList and siteSEs:
+        _seList = list(set(seList) & set(siteSEs))
+        if 'CERN-EOS' in seList: _seList.append('CERN-EOS')
+        seList = _seList
+    else:
+        seList += siteSEs
+
+seList = set(seList)
+
+f_first = dmScript.getOption('First', 0)
+f_last = dmScript.getOption('Last', 1000000)
+f_max = dmScript.getOption('Max', 1000000)
+pfn = dmScript.getOption('PFN', False)
+
+from LHCbDIRAC.Interfaces.API.DiracLHCb import DiracLHCb
+with Mute(True, False):
+    dirac = DiracLHCb()
+    bk = dirac.bkQueryPath(path)
+
+if bk and bk['OK'] and bk['Value']:
+    lfns = bk['Value']['LFNs']
+    keys = lfns.keys()
+    keys.sort()
+
+    keys = keys[f_first:f_last]
+
+    collected = set()
+
+    if not seList:
+
+        keys = keys[:f_max]
+        collected = set(keys)
+
+    else:
+
+        from DIRAC.DataManagementSystem.Client.DataManager import DataManager
+        dm = DataManager()
+
+        collected = set()
+        with Mute(True, True):
+            res = dm.getReplicas(keys, getUrl=False)
+        if res and res['OK'] and res['Value']:
+            replicas = res['Value'].get('Successful', {})
+            keys = replicas.keys()
+            keys.sort()
+            for key in keys:
+                reps = replicas[key]
+                for k in reps:
+                    if len(collected) < f_max and reps[k] and k in seList:
+                        collected.add(key)
+
+    collected = sorted(collected)
+    if pfn and seList:
+
+        with Mute(True, True):
+            dm = DataManager()
+            res = dm.getReplicas(list(collected), getUrl=False)
+            replicas = res.get('Value', {}).get('Successful', {})
+
+        ## full collection of storage elements for all replicas
+        _seList = set(se for lfn in collected for se in replicas.get(lfn, {}))
+
+        ## make an intersection with required list of storage elements
+        ## move all archives to the end of the list
+        sList = sorted(
+            seList.intersection(_seList), key=lambda s: (s.find('ARCHIVE'), s))
+
+        ## Move CERN-SWTEST  to the  front
+        if 'CERN-SWTEST' in sList:
+            sList.remove('CERN-SWTEST')
+            sList = ['CERN-SWTEST'] + sList
+
+        from DIRAC.Resources.Storage.StorageElement import StorageElement
+
+        lfns = set(collected)
+        result = {}
+        for se in sList:
+            if len(result) == len(lfns): break
+            files = [lfn for lfn in lfns if se in replicas.get(lfn, [])]
+            if files:
+                with Mute(True, True):
+                    se_ = StorageElement(se)
+                    res = StorageElement(se).getURL(
+                        files, protocol=['xroot', 'root'])
+                    if res and res['OK'] and res.get('Value', None):
+                        res = res['Value'].get('Successful', {})
+                        for k in res:
+                            if not k in result:
+                                result[k] = res[k]
+
+        keys = result.keys()
+        keys.sort()
+        collected = [result[k] for k in keys]
+
+    print '## produced by the script get-files-from-BK:'
+    _args = [(a if 0 > a.find(' ') else "'" + a + "'") for a in sys.argv[1:]]
+    print "## get-files-from-BK %s" % (' '.join(_args))
+    if 'DaVinci' == pfn and seList:
+        print 'from GaudiConf import IOHelper'
+        print 'IOHelper().inputFiles(['
+        for f in collected:
+            print '   "PFN:%s",' % f
+        print '   ], clear =  True )'
+    else:
+        import pprint
+        pp = pprint.PrettyPrinter(indent=2)
+        pp.pprint(list(collected))
+
+# =============================================================================
+# The END
+# =============================================================================
