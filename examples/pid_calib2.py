@@ -26,13 +26,14 @@ import ROOT, cppyy
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 # =============================================================================
 from ostap.logger.logger import getLogger
-if '__main__' == __name__: logger = getLogger('pid_calib2')
-else                     : logger = getLogger(__name__)
+if '__main__' == __name__: logger = getLogger ( 'pid_calib2' )
+else                     : logger = getLogger ( __name__     )
 # =============================================================================
 import ROOT
 import ostap.core.pyrouts
-import ostap.parallel.parallel_project 
-from   PidCalib2 import PARTICLE_3D    as PARTICLE
+import ostap.parallel.parallel_project
+# =============================================================================
+from   pidcalib.pidcalib2 import PARTICLE_3D    as PARTICLE
 # =============================================================================
 ## the actual function to fill PIDcalib histograms
 #  - it books two histogram  (3D in this case)

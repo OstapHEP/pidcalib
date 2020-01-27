@@ -27,7 +27,6 @@ __all__ = (
     'PARTICLE_3D'   ,  ## helper object to produce 3D efficiency histogram
 )
 # =============================================================================
-from __future__ import absolute_import
 import ROOT, os, abc 
 # =============================================================================
 from  ostap.logger.logger import getLogger, setLogging
@@ -420,7 +419,7 @@ def load_samples ( particles,
     """
 
     try:
-        from .grid import hasGridProxy
+        from pidcalib.grid import hasGridProxy
         if hasGridProxy():
             return load_samples_from_grid ( particles  = particles  ,
                                             years      = years      ,
