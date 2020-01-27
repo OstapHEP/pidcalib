@@ -27,6 +27,7 @@ __all__ = (
     'PARTICLE_3D'   ,  ## helper object to produce 3D efficiency histogram
 )
 # =============================================================================
+from __future__ import absolute_import
 import ROOT, os, abc 
 # =============================================================================
 from  ostap.logger.logger import getLogger, setLogging
@@ -419,7 +420,7 @@ def load_samples ( particles,
     """
 
     try:
-        from grid import hasGridProxy
+        from .grid import hasGridProxy
         if hasGridProxy():
             return load_samples_from_grid ( particles  = particles  ,
                                             years      = years      ,
@@ -614,8 +615,13 @@ def run_pid_calib(FUNC, args=[]):
 def treat_arguments(config):
     pass
 
+
 from ostap.parallel.task import   Task
+# =============================================================================
+## @class PidCalibTask
+#  Task for the parallel processing 
 class PidCalibTask(Task) :
+    """Task for the parallel processing"""
     def __init__ ( self , pidfunc ) :
         self.__pidfunc  = pidfunc
         self.__output   = {}
@@ -631,16 +637,7 @@ class PidCalibTask(Task) :
         import ostap.core.pyrouts
         
         data = ROOT.TChain  ( name )
-        for f in files :
-            ## print 'check file   %s' % f
-            ## ff = ROOT.TFile.Open ( f , 'read' , exception = False )
-            ## if ff and not ff.IsZombie() :
-            ##     print 'file %s is OK'     % f
-            ## else :
-            ##     print 'file %s is NOT OK' % f
-            ## if ff : ff.Close()
-            
-            data.Add ( f )
+        for f in files : data.Add ( f )
         
         self.__output = {  key : self.__pidfunc.run ( data ) } 
         return self.__output 

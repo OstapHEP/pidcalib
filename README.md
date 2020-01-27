@@ -23,12 +23,12 @@ The script to be execute from command-line
 ```
 pid_calib2.py 
 ```
-All command-line options can ebe inspected using `-h` flag
+All command-line arguments can be inspected using `-h` flag
 ```
 pid_calib2.py -h
 ```
 
-If calibration samples to be taken form the Grid, one needs to ensure that scripts in the directory [scripts] are in the path, e.g. 
+- If calibration samples to be taken from the Grid, one needs to ensure that scripts in the directory [scripts] are in the path, e.g. 
 ```
 PATH=<...>/scripts:$PATH pid_calib2.py ... 
 ```
@@ -36,13 +36,14 @@ Also for this mode one needs
  - access to LHCbDirac at `cernvmfs`, see the content of `dirac-command` script in [scripts] directory  
  - valid Grid proxy 
 
-In case `/eos/lhcb/grid` is accessible directly, no Grid proxy and machinery is requred. 
+- In case `/eos/lhcb/grid` is accessible directly, no Grid proxy and machinery is requred. 
 In this mode, a powerfull [pathos]-based parallelization is available, activated with `-z/--parallel` keys
 ```
 pid_calib2.py --parallel 
 ```
 
-If `/eos/lhcb/grid` is accessible directly, but inptu data are requested from the Grid, the optional conversion using the comman line flag `--useeos` is possible. It opens a way for the parallel processing.
+- If `/eos/lhcb/grid` is accessible directly, but input data are requested from the Grid, the optional conversion using the comman line flag `--useeos` is possible. It opens a way for the parallel processing.
+
 
 
 [ostap]: https://github.com/OstapHEP/ostap
