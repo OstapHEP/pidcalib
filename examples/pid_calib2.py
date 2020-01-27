@@ -26,28 +26,25 @@ import ROOT, cppyy
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 # =============================================================================
 from ostap.logger.logger import getLogger
-if '__main__' == __name__: logger = getLogger ( 'pid_calib2' )
-else                     : logger = getLogger ( __name__     )
+if '__main__' == __name__: logger = getLogger('pid_calib2')
+else                     : logger = getLogger(__name__)
 # =============================================================================
 import ROOT
 import ostap.core.pyrouts
-
-from   pidcalib.pidcalib2 import PARTICLE_3D    as PARTICLE
-
-
+import ostap.parallel.parallel_project 
+from   PidCalib2 import PARTICLE_3D    as PARTICLE
 # =============================================================================
 ## the actual function to fill PIDcalib histograms
-#  - it books two histograms (3D in this case)
+#  - it books two histogram  (3D in this case)
 #  - it fill them with 'accepted' and 'rejected' events (3D in this case)
-#  - update input historgams
 #  @author Vanya BELYAEV Ivan.Belyaev@itep.ru
 #  @date   2014-05-10
 class KAON (PARTICLE):
     """The actual function to fill PIDcalib histograms
-    - it books two histograms (3D in this case)
+    - it books two histogram  (3D in this case)
     - it fill them with 'accepted' and 'rejected' events (3D in this case)
     """
-    def __init__ ( self , cuts='' ) :
+    def __init__ ( self, cuts= '' ) :
 
         PARTICLE.__init__ (
             self     ,
@@ -62,24 +59,26 @@ class KAON (PARTICLE):
             ## binning in #tracks
             zbins    = [ 0 , 150 , 250 , 400 , 1000 ] ,
             ## additional cuts (if any)
-            cuts     = cuts ,
+            cuts     = 'probe_Brunel_hasRich' & ROOT.TCut ( cuts ) ,
             ## "Accept"-function                              what  to project/draw                                 cuts&weight
             acc_fun  = lambda s,data : data.project ( s.ha , 'nTracks : probe_Brunel_ETA : probe_Brunel_P/1000 ', '(%s)*probe_sWeight' % s.accepted ) ,
             ## "Reject"-function                              what  to project/draw                                 cuts&weight
             rej_fun  = lambda s,data : data.project ( s.hr , 'nTracks : probe_Brunel_ETA : probe_Brunel_P/1000 ', '(%s)*probe_sWeight' % s.rejected ) )
-    
+
+        
 # =============================================================================
 if '__main__' == __name__:
 
     #
     ## import function from Ostap
     #
-    from   pidcalib.PidCalib2   import run_pid_calib
+    from   pidcalib.pidcalib2               import run_pid_calib
     
-    run_pid_calib ( KAON, args = [ '-y' , '2018', 'K', '-f', '30', '-v', 'v8r0', '-q'  ] )
+    ## use it!
+    run_pid_calib ( KAON, args= [ '-y', '2018', 'K', '-f', '30', '-v', 'v8r0', '-q' ] )
     
-    logger.info(80 * '*')
+    logger.info ( 80 * '*')
 
 # =============================================================================
-##                                                                      The END
+# The END
 # =============================================================================
