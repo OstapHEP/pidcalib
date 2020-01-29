@@ -1,4 +1,4 @@
-# pidcalib : The efficient processing of LHCb/PidCalib PIC calibration data  using [ostap] project 
+# pidcalib : The efficient processing of LHCb/PidCalib PID calibration data  using [ostap] project 
 
 
 ## Dependencies
@@ -47,7 +47,16 @@ pid_calib2.py --parallel
 
 ### Run I processing 
  
-
+For Run I processnig and environment is more complicated.
+one needfs to have access to `PidCalib/POIDCalibScripts`.
+the easiest way sto rely on released verison of `URANIA` project 
+```
+lb-run URANIA/v9r0 bash -norc 
+```
+Of course one needs to ensure that [ostap] is build with the same [ROOT]
+```
+PYTHONPATH=$PYTHONPATH:$HOME/cmtuser/pidcalib PATH=$PATH:$HOME/cmtuser/pidcalib/scripts python ./examples/pid_calib1.py  P -s 20 -p MagUp -c 'P_hasRich==1'
+```
 
 [ostap]: https://github.com/OstapHEP/ostap
 [pidcalib]: https://github.com/OstapHEP/pidcalib

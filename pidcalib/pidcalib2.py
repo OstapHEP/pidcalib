@@ -308,9 +308,9 @@ def make_parser():
     
     parser.add_argument(
         '-o'   ,
-        '--output'                 ,
-        type       = str           ,
-        default    = 'PIDCALIB.db' ,
+        '--output'                  ,
+        type       = str            ,
+        default    = 'PIDCALIB2.db' ,
         help       = "The name of output database file")
 
     parser.add_argument(

@@ -21,9 +21,13 @@ def hasGridProxy():
     arguments =   'dirac-proxy-info --checkvalid'
     arguments = [ 'dirac-command' ] + arguments.split()
     ## arguments = arguments.split()
-    logger.verbose('hasGridProxy:use Popen(%s)' % arguments)
-    p = Popen(arguments, stdout=PIPE, stderr=PIPE)
-    (cout, cerr) = p.communicate()
+    logger.verbose('hasGridProxy:use Popen(%s)' % arguments )
+    try : 
+        p = Popen ( arguments , stdout = PIPE, stderr = PIPE )
+        (cout, cerr) = p.communicate()
+    except :
+        logger.warning ( "Cannot check Grid proxy" ) 
+        return False 
     #
     if 0 != p.returncode: return False
     #
