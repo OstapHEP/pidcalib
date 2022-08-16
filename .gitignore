@@ -40,6 +40,9 @@ build
 ############
 *.root
 
+# Ostap history
+.ostap_history* 
+
 # databases files
 ############
 *.db 
