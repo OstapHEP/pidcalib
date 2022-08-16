@@ -1,12 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # =============================================================================
-import os, collections
+import os, sys, collections
 # =============================================================================
 from  ostap.logger.logger import getLogger, setLogging
 if '__main__' == __name__: logger = getLogger( 'ostap.Grid')
 else                     : logger = getLogger( __name__    )
 # =============================================================================
+py3     = (3,0) <= sys.version_info 
+
+try :
+    from shutil import which 
+except ImportError :
+    which = None
+    
+if not which :
+    from distutils.spawn import find_executable as which 
 
 # =============================================================================
 ## check the validity of GRID proxy
@@ -18,24 +27,27 @@ def hasGridProxy():
     """
     import os
     from subprocess import Popen, PIPE
-    arguments =   'dirac-proxy-info --checkvalid'
-    arguments = [ 'dirac-command' ] + arguments.split()
-    ## arguments = arguments.split()
-    logger.verbose('hasGridProxy:use Popen(%s)' % arguments )
-    try : 
-        p = Popen ( arguments , stdout = PIPE, stderr = PIPE )
-        (cout, cerr) = p.communicate()
-    except :
-        logger.warning ( "Cannot check Grid proxy" ) 
-        return False 
+    
+    arguments = 'dirac-proxy-info --checkvalid'
+    arguments = ['dirac-command'] + arguments.split()
+    logger.verbose ( 'hasGridProxy:use Popen(%s)' % arguments)
+
+    p = Popen(arguments, stdout=PIPE, stderr=PIPE)
+    (cout, cerr) = p.communicate()
     #
     if 0 != p.returncode: return False
     #
-    if 'expired' in cout: return False
-    if 'Insane'  in cout: return False
-    if 'Error'   in cout: return False
+    if py3 :
+        cout = cout.decode ( 'utf-8' ) if cout else cout 
+        cerr = cerr.decode ( 'utf-8' ) if cerr else cerr 
+    # 
+
+    if 'expired' in cout : return False
+    if 'Insane'  in cout : return False
+    if 'Error'   in cout : return False
     #
     return 0 == p.returncode and cout and not cerr
+
 
 # =============================================================================
 ## @class BKRequest
@@ -119,7 +131,7 @@ def filesFromBK(request):
     accessURL = request.accessURL
     SEs       = request.SEs
 
-    arguments = 'dirac-command get_files_from_BK'
+    arguments = 'dirac-command %s' % which ( 'get_files_from_BK' ) 
 
     arguments += " %s " % path
 
@@ -148,7 +160,7 @@ def filesFromBK(request):
 
     ## arguments += ' "%s" ' % path
     ## convert to DIRAC
-
+    
     import os
     from subprocess import Popen, PIPE
     arguments = arguments.split()
@@ -157,14 +169,23 @@ def filesFromBK(request):
     p = Popen(arguments, stdout=PIPE, stderr=PIPE)
     (cout, cerr) = p.communicate()
 
-    if 0 != p.returncode or cerr:
-        logger.debug(
-            'filesFromBK: error from Popen: %d/%s' % (p.returncode, cerr))
+    
+    if 0 != p.returncode :
+        logger.error ( 'filesFromBK: error from Popen: %d/%s' % (p.returncode, cerr ) )
         return []
-    
-    cout = cout.split('\n')[1:] 
-    cout = '\n'.join ( cout )
-    
+
+    if py3 :
+        cout = cout.decode ( 'utf-8' ) if cout else cout 
+        cerr = cerr.decode ( 'utf-8' ) if cerr else cerr 
+
+    if cerr :
+        logger.error ( 'filesFromBK: error from Popen: %d/%s' % (p.returncode, cerr ) )
+        return []
+
+    cout = cout.split('\n')
+    cout = cout [2:]
+    cout = ' '.join ( cout )
+
     try:
         
         ## print 'here!', cout
@@ -172,12 +193,12 @@ def filesFromBK(request):
         if not isinstance(lst, list):
             raise TypeError("Invalid list type")
         ##
-        
+
         logger.debug( 'filesFromBK: %s ' % lst  )
         return lst
 
     except:
-        logger.debug("filesFromBK: can't interpret: %s" % cout)
+        logger.error ("filesFromBK: can't interpret: %s" % cout)
 
     return []
 
@@ -194,5 +215,5 @@ if __name__ == '__main__':
     logger.info(80 * '*')
 
 # =============================================================================
-# The END
+##                                                                      The END
 # =============================================================================

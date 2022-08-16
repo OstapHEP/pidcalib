@@ -14,10 +14,12 @@
 #  simple script to get GRID URL for certain LFN(s)  
 # =============================================================================
 
-## echo "I AM DIRAC-COMMAND"
 ## echo $*
-source /cvmfs/lhcb.cern.ch/lib/lhcb/LHCBDIRAC/lhcbdirac && unset PYTHONHOME && $*
+## source /cvmfs/lhcb.cern.ch/lib/lhcb/LHCBDIRAC/lhcbdirac && unset PYTHONHOME && $*
+## lb-dirac $* 
+## unset PYTHONHOME && unset PYTHONPATH && lb-dirac $* 
+unset PYTHONHOME && unset PYTHONPATH && lb-dirac $* 
 
 # =============================================================================
-# The END 
+##                                                                      The END 
 # =============================================================================

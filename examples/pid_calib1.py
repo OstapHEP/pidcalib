@@ -6,7 +6,7 @@
 #  Use '-h' option to know more
 #
 #  @code
-#  pid_calib.py Pi -s 20 -p MagUp -c 'Pi_hasRich==1' 
+#  pid_calib1.py P -s 21 21r1  -p MagUp -c 'P_hasRich==1' 
 #  @endocode
 #
 #  @author Vanya BELYAEV Ivan.Belyaev@itep.ru
@@ -14,7 +14,7 @@
 # =============================================================================
 """ An example of simple script to run PIDCalib machinery
 
-> pid_calib1.py Pi -s 20 -p MagUp -c 'Pi_hasRich==1'
+> pid_calib1.py P -s 21 21r1  -p MagUp -c 'P_hasRich==1'
 
 Use '-h' option to know more 
 
@@ -230,5 +230,5 @@ if '__main__' == __name__ :
     logger.info ( 80*'*' )
 
 # =============================================================================
-# The END 
+##                                                                      The END 
 # =============================================================================

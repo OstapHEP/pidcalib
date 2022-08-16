@@ -1,0 +1,45 @@
+# Python files #
+################
+# setup.py working directory
+build
+
+# Compiled source #
+###################
+*.py[ocd]
+
+# Editor temporary/working/backup files #
+#########################################
+.#*
+*~
+*.egg-info
+*.d
+*.o
+*.so
+
+# Log files and alike
+#####################
+*.log
+*.out
+
+# vscode
+.vscode/.*
+
+# Patches #
+###########
+*.patch
+*.diff
+
+# Media files
+#############
+*.png
+*.jpg
+*.eps
+*.gif
+
+# ROOT files
+############
+*.root
+
+# databases files
+############
+*.db 

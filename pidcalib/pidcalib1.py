@@ -54,13 +54,63 @@ __all__     = (
     'ex_func2'    , ## another example of end-user function 
     )
 # =============================================================================
-import ROOT
+import ROOT, os, sys 
 from   ostap.logger.logger import getLogger, setLogging 
 if '__main__' == __name__ : logger = getLogger ( 'ostap.pidcalib1' )
 else                      : logger = getLogger ( __name__          )
 # =============================================================================
+assert sys.version_info < (3,0), 'Python3 is not supported by Urania (yet?)'
+# =============================================================================
+
+if sys.version_info < ( 3,0 ) :
+    import itertools
+    itertools.zip_longest = itertools.izip_longest
+    logger.warning ("fix ``zip_longest'' ")
+    
+if ( 3,0 ) <= sys.version_info :
+    
+    import builtins 
+    sys.modules[ 'exceptions' ] = builtins
+    logger.warning ("fix ``exceptions'' ")
+    
+    import pickle
+    _old_load_ = pickle.load
+    def _new_load_ ( what , *args, **kwargs ) :
+        if 'encoding' in kwargs : return _old_load_( what , *args , **kwargs )
+        else                    : _old_load_ ( what , *args , encoding = 'latin1' , **kwargs )
+        
+    pickle.load = _new_load_
+    logger.warning ("fix ``pickle.load'' ")
+# =============================================================================
 import ostap.core.pyrouts 
 # =============================================================================
+
+    
+# =============================================================================
+root_dir = os.getenv ( 'PIDPERFSCRIPTSROOT' , '' )
+if not root_dir :
+    try :
+        import PIDPerfScript
+        path = os.path.dirname ( os.path.abspath (  PIDPerfScript.__file__ ) )
+        logger.info ( 'Set PIDPERFSCRIPTROOT to be %s' % path )
+        os.environ[ 'PIDPERFSCRIPTROOT' ] = path 
+    except :
+        pass
+
+root_dir = os.getenv ( 'PIDPERFSCRIPTSROOT' , '' )
+assert root_dir and os.path.exists ( root_dir ) and os.path.isdir ( root_dir ) ,\
+       'Invalid value for PIDPERFSCRIPTROOT %s' % root_dir
+
+pyroot_dir = root_dir + '/python'
+if not pyroot_dir  in sys.path :
+    logger.info ( 'Add %s to the sys.path' % pyroot_dir ) 
+    sys.path.insert ( 0 , pyroot_dir )
+
+pkl_dir = root_dir + '/pklfiles'
+assert os.path.exists ( pkl_dir ) and os.path.isdir ( pkl_dir ), \
+       'No pickle directory %s' % pkl_dir
+
+# ============================================================================
 ## prepare the parser
 #  oversimplified version of parser from MakePerfHistsRunRange.py script 
 #  @author Vanya BELYAEV Ivan.Belyaev@itep.ru
@@ -71,13 +121,15 @@ def makeParser () :
     - oversimplified version of parser from MakePerfHistsRunRange.py script 
     """
     import argparse, os, sys
+
+    
     for v in (
         ##'CALIBDATASCRIPTSROOT' ,
         ##'PIDPERFTOOLSROOT'     ,
-        'PIDPERFSCRIPTSROOT'     ,
+        ## 'PIDPERFSCRIPTSROOT'     ,
         ) :
         if not os.environ.has_key ( v ) :
-            logger.error ('No variable %s is defined. Check Urania environment [or getpack PIDCalib/PIDPerfScripts]' % v )
+            logger.error ('No variable %s is defined. Check Urania environment [or build local PIDCalib/PIDPerfScripts]' % v )
             
     parser = argparse.ArgumentParser (
         formatter_class = argparse.RawDescriptionHelpFormatter,
@@ -94,44 +146,63 @@ def makeParser () :
         )
     
     ## add the positional arguments
-    parser.add_argument ( 'particle'    ,
-                          metavar = '<PARTICLE>'    , type=str    ,
-                          choices = ('K', 'Pi', 'P' , 'e', 'Mu' ,  'P_LcfB' , 'P_TotLc' , 'P_IncLc' ) , 
-                          help    = "Sets the particle type"     )
+    parser.add_argument   ( 'particle'    ,
+                            metavar = '<PARTICLE>'    , type=str    ,
+                            choices = ('K', 'Pi', 'P' , 'e', 'Mu' ,  'P_LcfB' , 'P_TotLc' , 'P_IncLc' ) , 
+                            help    = "Sets the particle type"     )
     
-    parser.add_argument ( '-s' , '--stripping'       , nargs = '+' ,
-                          metavar = '<STRIPPING>'    , ## type=str ,                           
-                          help    = "Sets the stripping version(s)"  )
+    parser.add_argument   ( '-s' , '--stripping'       , nargs = '+' ,
+                            metavar = '<STRIPPING>'    , ## type=str ,                           
+                            help    = "Sets the stripping version(s)"  )
     
     ## add the optional arguments
-    parser.add_argument ( '-p' , '--polarity'            , default = 'Both' , 
-                          metavar = '<MAGNET>'           , type=str ,
-                          choices = ( 'MagUp', 'MagDown' , 'Both' ) , 
-                          help    = "Sets the magnet polarity"    )
+    parser.add_argument   ( '-p' , '--polarity'  ,
+                            default = 'Both'     , 
+                            metavar = '<MAGNET>' ,
+                            type    = str        ,
+                            choices = ( 'MagUp', 'MagDown' , 'Both' ) , 
+                            help    = "Sets the magnet polarity"    )
     
-    parser.add_argument ( '-x'   , '--minRun', default = 0 , 
-                          dest = "RunMin" , metavar="NUM", type=int, 
-                          help = "Sets the minimum run number to process (if applicable)")
-    parser.add_argument ( '-y', '--maxRun', 
-                          dest="RunMax"   , metavar="NUM", type=int, default = -1 ,
-                          help="Sets the maximum run number to process (if applicable)")
-    parser.add_argument ( '-f', '--maxFiles',
-                          dest="MaxFiles" , metavar="NUM", type=int, default=-1 , 
-                          help="Sets the maximum number of calibration files to run over")
-    parser.add_argument ( '-c', '--cuts', dest='cuts', metavar='CUTS', default='',
-                          help="""List of cuts to apply to the calibration sample
-                          prior to determine the PID efficiencies, 
-                          e.g. fiducuial volume,  HASRICH, etc... 
-                          """)
-    parser.add_argument ( "-o", "--outputDir", dest="outputDir", metavar="DIR",
-                          type=str , default = '.' , 
-                          help="Save the performance histograms to directory DIR "
-                          "(default: current directory)")
+    parser.add_argument   ( '-x'   , '--minRun',
+                            default = 0        , 
+                            dest    = "RunMin" ,
+                            metavar = "NUM"    ,
+                            type    = int, 
+                            help    = "Sets the minimum run number to process (if applicable)")
+    parser.add_argument   ( '-y', '--maxRun', 
+                            dest    = "RunMax" ,
+                            metavar ="NUM"     ,
+                            type    = int      ,
+                            default = -1       ,
+                            help    = "Sets the maximum run number to process (if applicable)")
+    parser.add_argument   ( '-f', '--maxFiles',
+                            dest    = "MaxFiles" ,
+                            metavar = "NUM"      ,
+                            type    = int        ,
+                            default = -1         , 
+                            help    = "Sets the maximum number of calibration files to run over")
+    parser.add_argument   ( '-c', '--cuts',
+                            dest    = 'cuts' , 
+                            metavar = 'CUTS' ,
+                            default = ''     ,
+                            help    = """List of cuts to apply to the calibration sample
+                            prior to determine the PID efficiencies, 
+                            e.g. fiducuial volume,  HASRICH, etc... 
+                            """)
+    parser.add_argument   ( "-o", "--outputDir",
+                            dest    = "outputDir" ,
+                            metavar = "DIR",
+                            type    = str ,
+                            default = '.' , 
+                            help    = "Save the performance histograms to directory DIR "
+                            "(default: current directory)")
     
     addGroup = parser.add_argument_group("further options")
-    addGroup.add_argument ("-q", "--quiet", dest="verbose", action="store_false",
-                           default=True,
-                           help="Suppresses the printing of verbose information")
+    addGroup.add_argument ( "-q", "--quiet"           ,
+                            dest    = "verbose"       ,
+                            action  = "store_false"   ,
+                            default = True,
+                            help    = "Suppresses the printing of verbose information")
     addGroup.add_argument(
         "-z"                   ,
         "--parallel"           ,
@@ -187,7 +258,7 @@ class PidCalibTask(Task) :
     def results (  self ) : return self.__output 
 
     ## merge the results 
-    def merge_results  ( self, results ) :
+    def merge_results  ( self , results , jobid = -1 ) :
 
         if results :
             if not self.__output :
@@ -246,19 +317,30 @@ def getDataSet ( particle           ,
     fname_query    = ""
     fname_extra    = ""
 
-    import os 
-    CalibDataProtocol=os.getenv("CALIBDATAURLPROTOCOL")
-    CalibDataExtra   =os.getenv("CALIBDATAEXTRA")
+    import os
     
+    ## CALIBDATAEXTRA=eoslhcb.cern.ch
+    ## CALIBDATAURLPROTOCOL=root:
+    ## CALIBDATASTORE=eos/lhcb/grid/prod/lhcb/calib/lhcb/calib/pid/CalibData
+
+    CalibDataProtocol = os.getenv ( "CALIBDATAURLPROTOCOL" , 'root:'           )
+    CalibDataExtra    = os.getenv ( "CALIBDATAEXTRA"       , 'eoslhcb.cern.ch' ) 
+
     # set the URL protocol (if applicable)
-    if CalibDataProtocol is not None and CalibDataProtocol!="":
+    if CalibDataProtocol is not None and CalibDataProtocol != "":
         fname_protocol = "{0}".format(CalibDataProtocol)
         
     if CalibDataExtra is not None and CalibDataExtra!="":
         fname_extra = "{0}".format(CalibDataExtra)
 
     vname_head = "CALIBDATASTORE" 
-    fname_head = os.getenv(vname_head)
+    fname_head = os.getenv(vname_head , 'eos/lhcb/grid/prod/lhcb/calib/lhcb/calib/pid/CalibData' )
+
+    if verbose : 
+        logger.info ('Use       CALIBDATASTORE : %s ' % fname_head        )
+        logger.info ('Use CALIBDATAURLPROTOCOL : %s ' % CalibDataProtocol )
+        logger.info ('Use       CALIBDATAEXTRA : %s ' % CalibDataExtra    )
+            
     if fname_head is None:
         from PIDPerfScripts.Exceptions import GetEnvError
         raise GetEnvError("Cannot retrieve dataset, environmental variable %s has not been set." %vname_head)
@@ -350,7 +432,7 @@ def getDataSet ( particle           ,
         if ws   : del ws
 
     if verbose:
-        logger.info ( "DataSet:\n%s" % dataset ) 
+        logger.info ( "DataSet:\n%s" % dataset.table ( prefix = '# ' ) )
 
     #======================================================================
     # Sanity test: do we have a dataset, and is it empty?
@@ -363,7 +445,7 @@ def getDataSet ( particle           ,
     # Veto ranges with insufficient statistics
     #======================================================================
     if dataset.sumEntries() < minEntries:
-        logger.warning ( "Insufficinent number of entries" )
+        logger.warning ( "Insufficient number of entries" )
         dataset.reset()
         del dataset 
         return None
@@ -792,10 +874,9 @@ def run_pid_calib ( FUNC , db_name = 'PID_eff.db' , args = [] ) :
         logger.info ( __doc__  )
         logger.info ( 80*'*'   )
         _vars   = vars ( config )
-        _keys   = _vars.keys()
-        _keys .sort()
+        ## _keys   = _vars.keys()
         logger.info ( 'PIDCalib configuration:')
-        for _k in _keys : logger.info ( '  %15s : %-s ' % ( _k , _vars[_k] ) )
+        for _k in sorted ( _vars )  : logger.info ( '  %15s : %-s ' % ( _k , _vars[_k] ) )
         logger.info ( 80*'*'   )
         setLogging(2) 
 
@@ -864,7 +945,8 @@ if '__main__' == __name__ :
     from ostap.utils.docme import docme
     docme ( __name__ , logger = logger )
 
-    run_pid_calib ( None , args = [ '-h'] ) 
+    run_pid_calib ( None , args = [ '-h'] )
+    
 # =============================================================================
 ##                                                                      The END
 # =============================================================================
