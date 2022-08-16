@@ -188,12 +188,9 @@ def filesFromBK(request):
 
     try:
         
-        ## print 'here!', cout
         lst = eval ( cout )
         if not isinstance(lst, list):
             raise TypeError("Invalid list type")
-        ##
-
         logger.debug( 'filesFromBK: %s ' % lst  )
         return lst
 

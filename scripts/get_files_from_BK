@@ -17,6 +17,7 @@
 #  @date   2017-05-11
 #  @author Vanya BELYAEV Ivan.Belyaev@itep.ru
 # =============================================================================
+from __future__ import print_function
 """
 Simple DIRAC-based script to get the files from certain path in Bookkkeeping
 """
@@ -110,12 +111,13 @@ Script.registerSwitch('m:', 'Max=', '   Maximum number of files',
 Script.registerSwitch('a:', 'AccessURLS=',
                       '   Return the access URLS instead of LFN',
                       dmScript._setPFN)
-Script.setUsageMessage('\n'.join(
-    __doc__.split('\n') + [
-        'Usage:',
-        '  %s [option|cfgfile] ... PATH' %
-        Script.scriptName, 'Arguments:', '  PATH:      Path in Bookkeeping DB'
-    ]))
+
+## Script.setUsageMessage('\n'.join(
+##     __doc__.split('\n') + [
+##     'Usage:',
+##     '  %s [option|cfgfile] ... PATH' %
+##     Script.scriptName, 'Arguments:', '  PATH:      Path in Bookkeeping DB'
+##     ]))
 
 Script.parseCommandLine(ignoreErrors=True)
 
@@ -127,7 +129,7 @@ if 2 == len ( args ) and args[0].endswith('/Real') and args[1].startswith ( 'Dat
     merged = True 
 
 if len(args) != 1:
-    print '## ARGS:' , args , '[merged=%s]' % merged 
+    print('## ARGS:' , args , '[merged=%s]' % merged )
     Script.showHelp()
     DIRAC.exit(1)
 
@@ -178,8 +180,8 @@ with Mute(True, False):
 
 if bk and bk['OK'] and bk['Value']:
     lfns = bk['Value']['LFNs']
-    keys = lfns.keys()
-    keys.sort()
+    keys = sorted ( lfns.keys() )
+    ## keys.sort()
 
     keys = keys[f_first:f_last]
 
@@ -200,8 +202,8 @@ if bk and bk['OK'] and bk['Value']:
             res = dm.getReplicas(keys, getUrl=False)
         if res and res['OK'] and res['Value']:
             replicas = res['Value'].get('Successful', {})
-            keys = replicas.keys()
-            keys.sort()
+            keys = sorted ( replicas.keys() )
+            ## keys.sort()
             for key in keys:
                 reps = replicas[key]
                 for k in reps:
@@ -247,19 +249,19 @@ if bk and bk['OK'] and bk['Value']:
                             if not k in result:
                                 result[k] = res[k]
 
-        keys = result.keys()
-        keys.sort()
+        keys = sorted ( result.keys() ) 
+        ## keys.sort()
         collected = [result[k] for k in keys]
 
-    print '## produced by the script get-files-from-BK:'
+    print ( '## produced by the script get-files-from-BK:' )
     _args = [(a if 0 > a.find(' ') else "'" + a + "'") for a in sys.argv[1:]]
-    print "## get-files-from-BK %s" % (' '.join(_args))
+    print ( "## get-files-from-BK %s" % (' '.join(_args)) ) 
     if 'DaVinci' == pfn and seList:
-        print 'from GaudiConf import IOHelper'
-        print 'IOHelper().inputFiles(['
+        print ( 'from GaudiConf import IOHelper' )
+        print ( 'IOHelper().inputFiles([' ) 
         for f in collected:
-            print '   "PFN:%s",' % f
-        print '   ], clear =  True )'
+            print ( '   "PFN:%s",' % f )
+        print ( '   ], clear =  True )' ) 
     else:
         import pprint
         pp = pprint.PrettyPrinter(indent=2)

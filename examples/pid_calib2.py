@@ -23,18 +23,19 @@ __date__    = "2017-05-05"
 __all__     = ()
 # =============================================================================
 import ROOT, cppyy
-ROOT.PyConfig.IgnoreCommandLineOptions = True
 # =============================================================================
 from ostap.logger.logger import getLogger
 if '__main__' == __name__: logger = getLogger ( 'pid_calib2' )
 else                     : logger = getLogger ( __name__     )
 # =============================================================================
-import ROOT
 import ostap.core.pyrouts
 import ostap.parallel.parallel_project
 import ostap.parallel.parallel_statvar
+from   pidcalib.pidcalib2               import PARTICLE_3D    as PARTICLE
 # =============================================================================
-from   pidcalib.pidcalib2 import PARTICLE_3D    as PARTICLE
+import ROOT, cppyy 
+# =============================================================================
+ROOT.PyConfig.IgnoreCommandLineOptions = True
 # =============================================================================
 
 class PROTON (PARTICLE):
@@ -132,10 +133,13 @@ if '__main__' == __name__:
                                    '-y', '2017' , '2018' , 
                                    ## '-y', '2018' , 
                                    '-v', 'v9r1' , 'v9r2' ,
-                                   '-d' , 
+                                   ## '-d' , 
                                    '-f' , '50' ,
                                    '-r' , r'.*(DSt|DsPhi)_K.*' , 
-                                   '-e' , '-g' , '-z' ] ) 
+                                   '-e' , 
+                                   '-g' ,
+                                   ## '-z'
+                                   ] ) 
 
     logger.info ( 80 * '*')
 

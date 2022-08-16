@@ -55,26 +55,30 @@ __all__ = (
     'PARTICLE_3D'   ,  ## helper object to produce 3D efficiency histogram
 )
 # =============================================================================
-import ROOT, sys, os, abc, pprint, random  
-from   ostap.core.meta_info           import root_info, ostap_info
-# =============================================================================
-assert (1,6,2) <= ostap_info , 'Ostap verion >= 1.6.3 is required!'
-# =============================================================================
 import ostap.core.pyrouts
 import ostap.trees.trees
 import ostap.trees.cuts 
 import ostap.io.root_file 
-import ostap.io.zipshelve              as DBASE
 import ostap.parallel.parallel_project 
 from   ostap.parallel.parallel_statvar import pStatVar 
 from   ostap.utils.progress_bar        import progress_bar
 from   ostap.utils.timing              import timing 
 from   ostap.utils.utils               import chunked 
+from   ostap.plotting.canvas           import use_canvas
+from   ostap.plotting.style            import useStyle
+from   ostap.utils.utils               import wait
+from   ostap.core.meta_info            import root_info, ostap_info
+import ostap.io.zipshelve              as     DBASE
+import ROOT, sys, os, abc, pprint, random  
 # =============================================================================
 from  ostap.logger.logger import getLogger, setLogging
 if '__main__' == __name__: logger = getLogger ( 'ostap.pidcalib2' )
 else                     : logger = getLogger ( __name__          )
 # =============================================================================
+assert (1,6,2) <= ostap_info , 'Ostap verion >= 1.6.3 is required!'
+# =============================================================================
+ROOT.PyConfig.IgnoreCommandLineOptions = True
+
 
 # =============================================================================
 # PIDCALIB data samples (LHCb Bookeeping DB-paths)
@@ -500,13 +504,14 @@ def make_parser():
         action  = "store_true" ,
         default = False        ,
         help    = "Use parallelization (does not work with GRID files,``UseEos'' is needed)" )
+    
     addGroup.add_argument (
         "-u"   ,
-        "--use-frame"                , 
-        dest    = "UseFrame"         ,
-        action  = "store_true"       , 
-        default = (6,25) < root_info ,
-        help    = "Use efficienct DataFrame for processing (for ROOT>6.25)" ) 
+        "--use-frame"                 , 
+        dest    = "UseFrame"          ,
+        action  = "store_true"        , 
+        default = False               , ## (6,25) <= root_info ,
+        help    = "Use efficient DataFrame for processing (for ROOT>6.25)" ) 
     addGroup.add_argument(
         "-d"                   ,
         "--dump"               ,
@@ -523,24 +528,33 @@ def make_parser():
         dest     = 'UseGrid'    ,
         help     = "Use GRID to get data (add ``UseEos'' is want to process in parallel)"
         )
-        
+    addGroup.add_argument (
+        "-b"      ,
+        "--batch" ,
+        action    = "store_true" , 
+        default   = False        ,
+        dest      = 'Batch'      ,
+        help      = "Batch processing (do not show the plots)"
+        )
+    
     return parser
 
 
 # =============================================================================
 ## load certain calibration files  using given file patterns
-def load_data ( pattern          ,
-                particles        ,
-                tag       = ''   ,
-                maxfiles  = -1   ,
-                verbose   = True ,
-                data      = {}   ) :
+def load_data ( pattern           ,
+                particles         ,
+                tag       = ''    ,
+                maxfiles  = -1    ,
+                verbose   = True  ,
+                data      = {}    ,
+                what      = '...' ) :
     """Load certain calibration files  using given file patterns
     """
 
     from ostap.trees.data import Data
 
-    logger.info ( 'Loading data...' )
+    logger.info ( 'Loading data %s ' % what  )
     for i , p in enumerate ( progress_bar ( tuple ( particles ) ) ) : 
 
         chain  = p + 'Tuple/DecayTree'
@@ -610,13 +624,14 @@ def load_samples ( particles,
                     pattern = fdir + '*.pidcalib.root'
                     
                     ## load files
-                    logger.info    ( 'Loadind data for Collisions="%s" , Year="%s" , Polarity="%s", Version="%s"' % (c, y, p, version ) )
-                    new_data = load_data ( pattern   ,
-                                           particles ,
-                                           tag       ,
-                                           maxfiles  ,
-                                           verbose   ,
-                                           data      )
+                    what = 'Collisions=%s, Year=%s, Polarity=%s, Version=%s' % ( c , y, p , version )
+                    new_data = load_data ( pattern     ,
+                                           particles   ,
+                                           tag         ,
+                                           maxfiles    ,
+                                           verbose     ,
+                                           data        ,
+                                           what = what )
                     data.update ( new_data )
                     del new_data
 
@@ -745,7 +760,7 @@ def load_from_grid ( path             ,
         logger.info ( 'Got %d files from "%s"' % ( len ( files ) , path ) )
         ## if verbose and dirs: logger.info('EOS-directories: %s' % list ( dirs ) )
         if not tag: tag = path
-        data = load_data ( files , particles , tag , maxfiles , verbose , data )
+        data = load_data ( files , particles , tag , maxfiles , verbose , data , what = path )
 
     if verbose and data and dirs :
         logger.info('EOS directories: %s ' % list ( dirs ) )
@@ -896,18 +911,18 @@ def run_pid_calib(FUNC, args=[]):
     if not all (  ( y in good_years )  for y in config.years ) :
         parser.exit ( message = "Invalid ``YEARS'': %s" % str ( config.years ) ) 
 
-    config.UseFrame = False
-    
+    ## config.UseFrame = False
     if config.UseFrame and not (6,25) <= root_info :
         config.UseFrame = False
         logger.warning('Processing via DataFrame is disabled!')
+    
         
-    if config.Parallel :
-        if not config.UseEos :
-            logger.warning("Parallel processing is disabled (due to ``UseEos'' setting)")
-            config.Parallel = False
+    ## if config.Parallel :
+    ##     if not config.UseEos :
+    ##         logger.warning("Parallel processing is disabled (due to ``UseEos'' setting)")
+    ##         config.Parallel = False
             
-    if config.Parallel and (3,0) < sys.version_info < (3,0) :
+    if config.Parallel and (3,6) <= sys.version_info :
         
         try :
             import dill
@@ -922,7 +937,6 @@ def run_pid_calib(FUNC, args=[]):
             logger.warning("Parallel processing is disabled (due to dill/python/ROOT issue)")
             config.Parallel = False
 
-            
     table = [ ( 'Parameter' , 'Value' ) ]
     conf  = vars ( config )
     for k in sorted ( conf ) :
@@ -937,9 +951,14 @@ def run_pid_calib(FUNC, args=[]):
     elif config.TestFiles:
         logger.warning ( 'TestFiles: Year/Polarity/Collision/Version will be ignored' )
        
-    if config.UseFrame : logger.info ('Procesing via DataFrame is activated!') 
     if config.Parallel : logger.info ('Parallel processing     is activated!')
-    
+    if config.UseFrame : logger.info ('Procesing via DataFrame is activated!') 
+    if config.UseFrame and not ROOT.ROOT.IsImplicitMTEnabled() :
+        ROOT.ROOT.EnableImplicitMT  ()
+        logger.info ( "Implicit MT is enabled" ) 
+
+    if config.Batch : ROOT.gROOT.SetBatch ( True )
+        
     return pid_calib ( FUNC , config)
 
 
@@ -953,7 +972,7 @@ def get_statistics ( chain , variables                    ,
     if ( 6 , 25 ) <= root_info and use_frame :
         
         from ostap.frames.frames import DataFrame, frame_statVars             
-        frame = DataFrame ( chain , enable = True ) 
+        frame = DataFrame ( chain ) ## , enable = True ) 
         return frame_statVars ( frame , variables, lazy = False )
 
     if parallel :  stats = chain.pstatVars ( variables )
@@ -1142,7 +1161,6 @@ def pid_calib ( FUNC , config ) :
     if 'Both' == polarity : polarity = ['MagUp', 'MagDown']
     else                  : polarity = [ polarity ]
 
-
     # =========================================================================
     known = set()
     for version in config.versions :
@@ -1286,7 +1304,6 @@ def pid_calib ( FUNC , config ) :
     ## required weight 
     check_weight = getattr ( fun , 'check_weight' , False  )
     if check_weight : check_weight = getattr ( fun , 'weight' )
-
 
     # =========================================================================
     ## Load PID samples
@@ -1579,7 +1596,7 @@ def pid_calib ( FUNC , config ) :
 
     if bad_keys :
         lst  = pprint.pformat ( list ( bad_keys ) ) 
-        logger.warning ('Remove from processing %d keys due to trivial ``%s'' weight : \n%s' % ( len ( bad_keys ) ,
+        logger.warning ("Remove from processing %d keys due to trivial ``%s'' weight : \n%s" % ( len ( bad_keys ) ,
                                                                                                  check_weight     ,
                                                                                                  lst              ) ) 
 
@@ -1690,7 +1707,7 @@ def pid_calib ( FUNC , config ) :
         with DBASE.open ( config.output ) as db:
             db [  k                                     ] = acc, rej
             heff = 1.0 / ( 1 + rej / acc ) 
-            db [  k + ':efficiency'                     ] = heff            ## efficiency histograms 
+            db [  k + ':efficiency'                     ] = heff            ## efficiency histogram
             if   isinstance ( heff , ROOT.TH3D ) and 3 == heff.dim () :
                 db [  k + ':efficiency,z-slices'        ] = [ heff.sliceZ(i) for i in range ( 1 , heff.nbinsz() ) ]
             elif isinstance ( heff , ROOT.TH2D ) and 2 == heff.dim () :
@@ -1743,40 +1760,33 @@ def pid_calib ( FUNC , config ) :
     table = T.table ( report , title = 'Performance for %s processed samples' % len ( keys ) , prefix = '# ')
     logger.info ( 'Performance for %s processed %s samples:\n%s' % ( len ( keys ) , particles , table ) )
 
-    if config.verbose and os.path.exists ( config.output ) :
+    if config.verbose and os.path.exists ( config.output ) and not ROOT.gROOT.IsBatch () :
         
-        import time
         ROOT.gStyle.SetPalette ( 53 )
         
         with DBASE.open ( config.output , 'r') as db:
             
             for k in sorted ( results ) :
-
-                tag1 = k + ':efficiency'                
+                
+                tag1 = k + ':efficiency'
                 if tag1 in db : 
-                    try :                        
+                    try :
                         heff = db.get ( tag1 , None )
                         if  heff and isinstance ( heff , ROOT.TH1 ) and 2 == heff.dim () :
-                            logger.info ('Sample %25s, 2D-efficiency' %  k )
-                            heff.SetContours(50)
-                            heff.draw('colz')                            
-                            time.sleep(2)
+                            with wait ( 3 ) , use_canvas ('Sample %25s, 2D-efficiency' %  k ) :
+                                heff.draw('colz')
                         elif heff and isinstance ( heff , ROOT.TH1 ) and 1 == heff.dim () :
-                            logger.info ('Sample %25s, 1D-efficiency' %  k )
-                            heff.draw ()
-                            time.sleep(2)                                                                               
+                            with wait ( 3 ) , use_canvas ('Sample %25s, 1D-efficiency' %  k ) :  heff.draw ()
                     except :
                         pass
                     
                 tag2 = k + ':efficiency,z-slices'
                 if tag2 in db :
-                    try : 
+                    try :
                         zslices = db.get ( tag2 , [] )
                         for i , zs in enumerate ( zslices ) :
-                            logger.info ('Sample %25s, 2D-efficiency, z-slice %d' % ( k , i+1 ) )
-                            heff.SetContours(50)
-                            zs.draw('colz') 
-                            time.sleep(2)
+                            with wait ( 3 ) , use_canvas ('Sample %25s, 2D-efficiency, z-slice %d' % ( k , i + 1 ) ) :
+                                zs.draw('colz') 
                     except :
                         pass 
                             
@@ -1785,13 +1795,11 @@ def pid_calib ( FUNC , config ) :
                     try : 
                         yslices = db.get ( tag3 , [] )
                         for i , ys in enumerate ( yslices ) :
-                            logger.info ('Sample %25s, 1D-efficiency, y-slice %d' % ( k , i+1 ) )
-                            ys.draw() 
-                            time.sleep(2)
+                            with wait( 2 ) , use_canvas ('Sample %25s, 1D-efficiency, y-slice %d' % ( k , i+1 ) ) :
+                                ys.draw() 
                     except :
                         pass
 
-    
     parts = set () 
     for p in particles :
         for k in keys :
@@ -1933,7 +1941,7 @@ class PARTICLE ( object )  :
         if ( 6 , 25 ) <= root_info  and use_frame :
             
             from ostap.frames.frames import DataFrame, frame_project         
-            frame = DataFrame ( data , enable = True ) 
+            frame = DataFrame ( data ) ## , enable = True ) 
             
             current = frame
             
