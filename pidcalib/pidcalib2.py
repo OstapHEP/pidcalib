@@ -194,9 +194,40 @@ samples  = {
     'v9r3' : {
     'pp/2016/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision16/PIDCALIB.ROOT/00111825/0000/' , 
     'pp/2016/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision16/PIDCALIB.ROOT/00111823/0000/' , 
-    }
+    },
+    # =============================================================================================
+    ## VB: version is unknown (for me). The paths are taken 2022/08/17 from
+    #  https://twiki.cern.ch/twiki/bin/viewauth/LHCbPhysics/ChargedPID#Run_2_samples
+    # =============================================================================================
+    'vXXX' : {
+    ## 2015 
+    'pp/2015/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision15/PIDCALIB.ROOT/00064787/0000/' , 
+    'pp/2015/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision15/PIDCALIB.ROOT/00064785/0000/' ,
+    ## 2016 all except  Jpsinopt 
+    'pp/2016/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision16/PIDCALIB.ROOT/00111823/0000/' , ## (all except Jpsinopt)    
+    'pp/2016/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision16/PIDCALIB.ROOT/00111825/0000/' , ## (all except Jpsinopt)
+    ## 2017 all except  Jpsinopt 
+    'pp/2017/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision17/PIDCALIB.ROOT/00106050/0000/' , ## (all except Jpsinopt)    
+    'pp/2017/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision17/PIDCALIB.ROOT/00106052/0000/' , ## (all except Jpsinopt)
+    ## 2018 all except  Jpsinopt 
+    'pp/2018/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision18/PIDCALIB.ROOT/00109276/0000/' , ## (all except Jpsinopt)
+    'pp/2018/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision18/PIDCALIB.ROOT/00109278/0000/' , ## (all except Jpsinopt)
+    }, 
+    ## 
+    'vXXX_nopt' : {
+    ## 2016 only Jpsinopt 
+    'pp/2016/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision16/PIDCALIB.ROOT/00111665/0000/' , ## (only Jpsinopt)
+    'pp/2016/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision16/PIDCALIB.ROOT/00111667/0000/' , ## (only Jpsinopt)
+    ## 2017 only Jpsinopt 
+    'pp/2017/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision17/PIDCALIB.ROOT/00108862/0000/' , ## (only Jpsinopt)    
+    'pp/2017/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision17/PIDCALIB.ROOT/00108864/0000/' , ## (only Jpsinopt)
+    ## 
+    'pp/2018/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision18/PIDCALIB.ROOT/00108868/0000/' , ## (only Jpsinopt)    
+    'pp/2018/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision18/PIDCALIB.ROOT/00108870/0000/' , ## (only Jpsinopt)
+    }, 
     }
     
+
 # =============================================================================
 ## known species of particles 
 SPECIES   = ( 'EP'  , 'EM'   ,
@@ -309,9 +340,47 @@ PARTICLES = {
     'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSLL_PiM', 'KSLL_PiP'] , 
     'PROTONS' : ['Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar',
                  'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar', 'Lc_P', 'Lc_Pbar'] , 
-    }}
+    }} ,
     # =========================================================================
+    'vXXX'   : {
+    2015   : {
+    'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP'] ,
+    'MUONS'   : ['B_Jpsi_MuM', 'B_Jpsi_MuP', 'Jpsi_MuM', 'Jpsi_MuP', 'Jpsinopt_MuM', 'Jpsinopt_MuP' ] ,
+    'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSLL_PiM', 'KSLL_PiP'] , 
+    'PROTONS' : ['Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar'] 
+    } ,
+    2016   : {
+    'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP'] ,
+    'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP'],
+    'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSLL_PiM', 'KSLL_PiP'] ,                                                                                                    
+    'PROTONS' : ['Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar', 'Lc_P', 'Lc_Pbar']
+    } ,
+    2017   : {
+    'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP', 'OmegaDDD_KM', 'OmegaDDD_KP', 'OmegaL_KM', 'OmegaL_KP'] ,
+    'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP'] ,
+    'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSDD_PiM', 'KSDD_PiP', 'KSLL_PiM', 'KSLL_PiP'] ,
+    'PROTONS' : ['Lam0DD_HPT_P', 'Lam0DD_HPT_Pbar', 'Lam0DD_P', 'Lam0DD_Pbar', 'Lam0DD_VHPT_P', 'Lam0DD_VHPT_Pbar', 'Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar', 'Lc_P', 'Lc_Pbar']
+    },
+    2018   : {
+    'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP', 'OmegaDDD_KM', 'OmegaDDD_KP', 'OmegaL_KM', 'OmegaL_KP'] ,                                                                                                                                                
+    'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP'] ,
+    'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSDD_PiM', 'KSDD_PiP', 'KSLL_PiM', 'KSLL_PiP'] , 
+    'PROTONS' : ['Lam0DD_HPT_P', 'Lam0DD_HPT_Pbar', 'Lam0DD_P', 'Lam0DD_Pbar', 'Lam0DD_VHPT_P', 'Lam0DD_VHPT_Pbar', 'Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar', 'Lc_P', 'Lc_Pbar']
+    } ,
+    } , 
+    'vXXX_nopt' : {
+    2016     : {
+    'MUONS'  : ['Jpsinopt_MuM', 'Jpsinopt_MuP'] 
+    } ,
+    2017     : {
+    'MUONS'  : ['Jpsinopt_MuM', 'Jpsinopt_MuP'] 
+    } ,
+    2018     : {
+    'MUONS'  : ['Jpsinopt_MuM', 'Jpsinopt_MuP'] 
+    } ,
+    } ,
     }
+
 # =============================================================================
 ## TTree names
 electrons = set()
@@ -556,12 +625,12 @@ def load_data ( pattern           ,
 
     logger.info ( 'Loading data %s ' % what  )
     for i , p in enumerate ( progress_bar ( tuple ( particles ) ) ) : 
-
         chain  = p + 'Tuple/DecayTree'
-        d      = Data ( chain , pattern , maxfiles = maxfiles , silent = True , check = False )
+        d      = Data ( chain , pattern , maxfiles = maxfiles , silent = False , check = False )
         key    = '%s/%s' % ( tag , p )
 
-        logger.debug ( 'Loaded data [%2d/%-2d] for key %s: %s' % ( i , len ( particles ) , key , d ) )
+        if verbose : logger.info  ( 'Loaded data [%2d/%-2d] for key %s: %s' % ( i , len ( particles ) , key , d ) )
+        else       : logger.debug ( 'Loaded data [%2d/%-2d] for key %s: %s' % ( i , len ( particles ) , key , d ) )
         if not d:
             logger.warning ( 'No useful data is found for %s' % key )
             continue
@@ -615,13 +684,19 @@ def load_samples ( particles,
                     if not version in samples : continue
                     
                     fdir = samples[version].get(tag, None)
-                    if not fdir:                        
+                    if not fdir:
                         logger.warning ( 'No data is found for Collisions="%s" , Year="%s" , Polarity="%s", Version="%s"' % (c, y, p, version ) )
                         continue
-                        
-                    
+
+                    if not os.path.exists ( fdir ) :
+                        logger.error ( 'Non-existing directory    : %s, skip!' )
+                        continue
+                    if not os.path.isdir ( fdir ) :
+                        logger.error ( 'The path is not directory : %s, skip!' )
+                        continue
+
                     ## file pattern:
-                    pattern = fdir + '*.pidcalib.root'
+                    pattern = os.path.join ( fdir, '*.pidcalib.root' ) 
                     
                     ## load files
                     what = 'Collisions=%s, Year=%s, Polarity=%s, Version=%s' % ( c , y, p , version )
@@ -1130,6 +1205,83 @@ class StatVar2Task(Task) :
                     
 
 # =============================================================================
+## Check the presence of claibration samples in the files
+#  @attention there is a sequential loop over the files
+def check_samples ( files ) :
+    """ Check the presence of claibration samples in the files
+    -attention there is a sequential loop over the files
+    """
+    from collections import defaultdict
+    sk    = defaultdict ( list )
+    
+    other = '*OTHER*'
+
+    ## all calibration species 
+    ss = set()
+    
+    with timing ( 'Check for calibration samples... (sequential loop over %d files)' % len ( files ) , logger = logger ) : 
+        for f in progress_bar ( files ) :
+            with ROOT.TFile.Open ( f , 'READ' ) as ff :
+                keys = ff.keys()
+                for k in keys:
+                    p = k.find ( '/DecayTree' )
+                    if 0 < p: ss.add ( k [ : p ] )
+                    
+    for s in ss:
+        s = s.replace ( 'Tuple' , '' )
+        a, b, q = s.rpartition('_')
+        if   q in ( 'PiP' , 'PiM' ) : sk [ 'PIONS'    ] . append ( s )
+        elif q in ( 'MuP' , 'MuM' ) : sk [ 'MUONS'    ] . append ( s )
+        elif q in ( 'KP'  , 'KM'  ) : sk [ 'KAONS'    ] . append ( s )
+        elif q in ( 'P'   , 'Pbar') : sk [ 'PROTONS'  ] . append ( s )
+        elif q in ( 'EP'  , 'EM'  ) : sk [ 'ELECTRONS'] . append ( s )
+        else:
+            sk [ other ] . append ( s )
+
+    for k in sk : sk [ k ] . sort ()
+    
+    table = [ ( 'Particle' , '#' , 'Samples' )  ]
+    for k in sorted ( sk ) :
+        row = k , '%d' % len ( sk [ k ] ) , str ( sk [ k ] ) 
+        table.append ( row )
+        
+    import ostap.logger.table as T
+    
+    title = 'Found %2d calibration samples' % len ( ss )
+    table = T.table ( table , title = title , prefix = '# ' , alignment = 'lrw' )
+    logger.info ( '%s\n%s' % ( title , table ) )  
+
+    keys   = sk.keys()
+    smpls1 = defaultdict ( int )
+    smpls2 = defaultdict ( int )
+    
+    #
+    ## ALL samples in the found files
+    # 
+    with timing ( 'Check for PIDCalib samples... (sequential loop over %s files)' % len ( files ) , logger =  logger )  :
+        for f in progress_bar ( files ) :
+            with ROOT.TFile.Open ( f , 'READ' ) as ff : 
+                for k in sorted ( sk )  :
+                    sk[k].sort()
+                    for s in sk[k] : 
+                        c = ff.get ( s + 'Tuple/DecayTree', None )
+                        if not c : continue
+                        smpls1 [ s ] += len ( c ) 
+                        smpls2 [ s ] += 1 
+                            
+    table = [ ( 'Sample' , '#files' , '#events' ) ]
+    for k in sorted ( sk  ) :
+        if k == other  : continue 
+        for s in sk[k] :
+            row = s , '%d' % smpls2 [ s ] , '%d' % smpls1 [ s ]
+            table.append ( row )
+    title = 'Statistics for %2d PIDCalib samples' % len ( ss ) 
+    table = T.table ( table , title = title , prefix = '# ' , alignment = 'lrr' )
+    logger.info ( '%s:\n%s' % ( title , table ) )
+    
+    return sk, smpls1, smpls2 
+
+# =============================================================================
 ## Run PID-calib machinery
 def pid_calib ( FUNC , config ) :
     """ Run PID-calib procedure
@@ -1162,17 +1314,18 @@ def pid_calib ( FUNC , config ) :
     else                  : polarity = [ polarity ]
 
     # =========================================================================
-    known = set()
-    for version in config.versions :
-        if version in PARTICLES :
-            pp = PARTICLES[version]
-            for year in config.years :
-                if year in pp :                    
-                    parts = pp [year ]
-                    for p in parts : known |= set ( parts [ p ] )
-
-    particles = set(particles) & known
-    particles = tuple(particles)
+    if not config.TestPath and not config.TestFiles : 
+        known = set()
+        for version in config.versions :
+            if version in PARTICLES :
+                pp = PARTICLES[version]
+                for year in config.years :
+                    if year in pp :                    
+                        parts = pp [year ]
+                        for p in parts : known |= set ( parts [ p ] )
+        particles = set(particles) & known
+        particles = tuple(particles)
+                        
 
     if config.collisions in ('pA', 'Ap'):
 
@@ -1305,6 +1458,10 @@ def pid_calib ( FUNC , config ) :
     check_weight = getattr ( fun , 'check_weight' , False  )
     if check_weight : check_weight = getattr ( fun , 'weight' )
 
+
+    if not particles :
+        logger.error ( "No samples are deduced! Check configuration!" )                       
+                           
     # =========================================================================
     ## Load PID samples
     # =========================================================================
@@ -1322,9 +1479,13 @@ def pid_calib ( FUNC , config ) :
         data = load_from_grid ( path, particles, maxfiles = config.MaxFiles, verbose = config.verbose )
 
     elif config.TestFiles:
-        logger.info ( 'Test files to be loaded from %s' % config.TestFiles)
+        
+        logger.info ( 'Test files to be loaded from %s' % config.TestFiles )
+        testfiles = config.TestFiles 
+        if os.path.exists ( testfiles ) and os.path.isdir ( testfiles ) :
+            testfiles = os.path.join ( testfiles , '*.pidcalib.root' ) 
         data = load_data (
-            config.TestFiles           ,
+            testfiles                  ,
             particles                  ,
             tag      = 'TESTFILES'     ,
             maxfiles = config.MaxFiles ,
@@ -1361,87 +1522,13 @@ def pid_calib ( FUNC , config ) :
                 files.add ( f )
 
         logger.info ( 'Inspect %s randomly selected input data files...' % len ( files ) ) 
-
-
-        from collections import defaultdict
-        sk = defaultdict ( list )
-
-        import ostap.core.pyrouts
-        import ostap.trees.trees
-        import ostap.io.root_file 
-
-        other = '*OTHER*'
-
-        ## all calibration species 
-        ss = set()
+        check_samples ( files )
         
-        with timing ( 'Check for calibration samples... (sequential loop over %d files)' % len ( files ) , logger = logger ) : 
-            for f in progress_bar ( files ) :
-                with ROOT.TFile.Open ( f , 'READ' ) as ff :
-                    keys = ff.keys()
-                    for k in keys:
-                        p = k.find ( '/DecayTree' )
-                        if 0 < p: ss.add ( k [ : p ] )    
-        for s in ss:
-            s = s.replace ( 'Tuple' , '' )
-            a, b, q = s.rpartition('_')
-            if   q in ( 'PiP' , 'PiM' ) : sk [ 'PIONS'    ] . append ( s )
-            elif q in ( 'MuP' , 'MuM' ) : sk [ 'MUONS'    ] . append ( s )
-            elif q in ( 'KP'  , 'KM'  ) : sk [ 'KAONS'    ] . append ( s )
-            elif q in ( 'P'   , 'Pbar') : sk [ 'PROTONS'  ] . append ( s )
-            elif q in ( 'EP'  , 'EM'  ) : sk [ 'ELECTRONS'] . append ( s )
-            else:
-                sk [ other ] . append ( s )
-
-        for k in sk : sk [ k ] . sort ()
-
-
-        table = [ ( 'Particle' , '#' , 'Samples' )  ]
-        for k in sorted ( sk ) :
-            row = k , '%d' % len ( sk [ k ] ) , str ( sk [ k ] ) 
-            table.append ( row )
-            
-        import ostap.logger.table as T
-
-        title = 'Found calibration samples'
-        table = T.table ( table , title = title , prefix = '# ' , alignment = 'lrw' )
-        logger.info ( 'Found calibration samples\n%s' % table ) 
-                        
-        keys   = sk.keys()
-        smpls1 = defaultdict ( int )
-        smpls2 = defaultdict ( int )
-
-        #
-        ## ALL samples in the found files
-        # 
-        with timing ( 'Check for PIDCalib samples... (sequential loop over %s files)' % len ( files ) , logger =  logger )  :
-            for f in progress_bar ( files ) :
-                with ROOT.TFile.Open ( f , 'READ' ) as ff : 
-                    for k in sorted ( sk )  :
-                        sk[k].sort()
-                        for s in sk[k] : 
-                            c = ff.get ( s + 'Tuple/DecayTree', None )
-                            if not c : continue
-                            smpls1 [ s ] += len ( c ) 
-                            smpls2 [ s ] += 1 
-                            
-        table = [ ( 'Sample' , '#files' , '#events' ) ]
-        for k in sorted ( sk  ) :
-            if k == other  : continue 
-            for s in sk[k] :
-                row = s , '%d' % smpls2 [ s ] , '%d' % smpls1 [ s ]
-                table.append ( row )
-        title = 'Found PIDCalib samples'
-        table = T.table ( table , title = title , prefix = '# ' , alignment = 'lrr' )
-        logger.info ( '%s:\n%s' % ( title , table ) )
-
     # 
     ## get the list of PROBNN tunes for the samples 
     # 
-    with timing ( 'Check for PROBBNN tunes... (sequential loop)' , logger = logger ) :
-        
-        tunes = set()        
-        
+    with timing ( 'Check for PROBBNN tunes... (sequential loop)' , logger = logger ) :        
+        tunes = set()                
         for key in progress_bar ( data ) :
             chain    = data [ key ] . chain
             branches = chain.branches() 

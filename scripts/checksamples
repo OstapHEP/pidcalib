@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# =============================================================================
+## @file checksamples .py
+#  Check the avaolabe PIDCalib samles for the inpt files 
+# =============================================================================
+"""Check the avaolabe PIDCalib samles for the inpt files 
+"""
+# =============================================================================
+__version__ = "$Revision$"
+__author__  = "Vanya BELYAEV Ivan.Belyaev@itep.ru"
+__date__    = "2011-06-07"
+__all__     = ()
+# =============================================================================
+import argparse, sys, os, glob  
+
+parser = argparse.ArgumentParser (
+    formatter_class = argparse.RawDescriptionHelpFormatter,
+    prog            = 'checksamples' ,
+    description     = """
+    check PIDCalib files :
+    - print the available calibration samples 
+    - print statistics of samples 
+    """ + '\n' + __doc__ + '\n\n\n',
+    )
+
+## add mandatory arguments
+parser.add_argument (
+    'files'             ,
+    metavar = '<FILES>' ,
+    type    = str       ,
+    nargs   =   '+'     ,
+    help    = "list of PIDCalib files to check" )
+parser.add_argument(
+    '-m'             ,
+    '--maxfiles'     ,
+    dest          = "MaxFiles" ,
+    metavar       = "<MAX>"    ,
+    type          = int        ,
+    default       = -1         ,
+    help          = "The maximum number of files to check")
+
+
+# ============================================================================
+if '__main__' == __name__ :
+
+    
+    vargs = [ a for a in sys.argv[1:] if '--' != a ]
+
+    config = parser.parse_args ( vargs )
+
+    patterns = [] 
+    for f in config.files :
+        if os.path.exists ( f ) and os.path.isdir ( f ) :
+            patterns.append ( os.path.join  ( f , '*.pidcalib.root' ) )
+        else :
+            patterns.append ( f )
+
+    files = []
+    for pattern in patterns :
+        for f in glob.iglob ( pattern ) :
+            if 0 < config.MaxFiles and len ( files ) == config.MaxFiles : break 
+            files.append ( f )
+
+    from pidcalib.pidcalib2 import check_samples
+    check_samples ( files ) 
+        
+
+    
+
+# =============================================================================
+##                                                                      The END 
+# =============================================================================
