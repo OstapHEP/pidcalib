@@ -22,18 +22,16 @@ __author__  = "Vanya BELYAEV Ivan.Belyaev@itep.ru"
 __date__    = "2017-05-05"
 __all__     = ()
 # =============================================================================
-import ROOT, cppyy
-# =============================================================================
-from ostap.logger.logger import getLogger
-if '__main__' == __name__: logger = getLogger ( 'pid_calib2' )
-else                     : logger = getLogger ( __name__     )
-# =============================================================================
 import ostap.core.pyrouts
 import ostap.parallel.parallel_project
 import ostap.parallel.parallel_statvar
 from   pidcalib.pidcalib2               import PARTICLE_3D    as PARTICLE
 # =============================================================================
 import ROOT, cppyy 
+# =============================================================================
+from ostap.logger.logger import getLogger
+if '__main__' == __name__: logger = getLogger ( 'pid_calib2' )
+else                     : logger = getLogger ( __name__     )
 # =============================================================================
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 # =============================================================================
@@ -57,15 +55,12 @@ class PROTON (PARTICLE):
             ybins    = [ 2.0 , 2.25 , 2.5 , 2.75 , 3.0 , 3.25, 3.5 , 4.75 , 4.0 , 4.25 , 4.5 , 4.65 , 4.9 ] ,
             ## binning in #tracks
             zbins    = [ 0 , 150 , 250 , 400 , 1000 ] ,
-            ## xbins    = [ 0 , 50 , 100 , 150 ] ,
-            ## ybins    = [ 0 ,    5 ] ,
-            ## zbins    = [ 0 , 1000 ] ,
-            ##
+            ## 
             xvar     = 'probe_Brunel_P/1000' ,
             yvar     = 'probe_Brunel_ETA'    ,
             zvar     = 'nTracks'             ,
             ##
-            cuts     = 'probe_Brunel_hasRich' & ROOT.TCut ( 'probe_Brunel_PT>0.180' ) & ROOT.TCut ( cuts ) ,
+            cuts     = 'probe_Brunel_hasRich' & ROOT.TCut ( 'probe_Brunel_PT>180' ) & ROOT.TCut ( cuts ) ,
             ##
             weight   = 'probe_Brunel_sWeight' )
 
@@ -88,15 +83,12 @@ class KAON (PARTICLE):
             ybins    = [ 2.0 , 2.25 , 2.5 , 2.75 , 3.0 , 3.25, 3.5 , 4.75 , 4.0 , 4.25 , 4.5 , 4.65 , 4.9 ] ,
             ## binning in #tracks
             zbins    = [ 0 , 150 , 250 , 400 , 1000 ] ,
-            ## xbins    = [ 0 , 50 , 100 , 150 ] ,
-            ## ybins    = [ 0 ,    5 ] ,
-            ## zbins    = [ 0 , 1000 ] ,
             ##
             xvar     = 'probe_Brunel_P/1000' ,
             yvar     = 'probe_Brunel_ETA'    ,
             zvar     = 'nTracks'             ,
             ##
-            cuts     = 'probe_Brunel_hasRich' & ROOT.TCut ( 'probe_Brunel_PT>0.2' ) & ROOT.TCut ( cuts ) ,
+            cuts     = 'probe_Brunel_hasRich' & ROOT.TCut ( 'probe_Brunel_PT>200' ) & ROOT.TCut ( cuts ) ,
             ##
             weight   = 'probe_Brunel_sWeight' )
 
@@ -112,35 +104,32 @@ if '__main__' == __name__:
     ## use it!
     ## run_pid_calib ( KAON, args = [ '-y', '2018', 'K', '-f', '2', '-v', 'v9r2', '-q' ] )
 
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-f', '10', '-v', 'v4r1', '-q' , '-d' , '-z'] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-f', '3', '-v', 'v4r1', '-q' , '-d' , '-z' ] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-f', '3', '-v', 'v4r1', '-q' , '-d' ] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-f', '10', '-v', 'v4r1', '-q' , '-d' ] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-f', '10', '-v', 'v4r1', '-q' , '-d' , '-z'] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-f', '3', '-v', 'v4r1', '-q' , '-d' , '-z'] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-f', '3', '-v', 'v4r1', '-q' , '-d' , '-e' ] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-f', '10', '-v', 'v4r1', '-q' , '-d' , '-e' , '-z'] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P' , '-f' , '100' , '-v', 'v4r1', '-q' , '-e' , '-z'] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-v', 'v4r1', '-q' , '-d' , '-e' , '-z'] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P' , '-v', 'v4r1', '-q' , '-d' , '-e' , '-z' ] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-v', 'v4r1', '-q' , '-d' ] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-v', 'v4r1', '-q' , '-d' ] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P' , '-v', 'v4r1', '-q' , '-d' ] )
-    ## run_pid_calib ( PROTON , args = [ '-y', '2015', 'P', '-v', 'v4r1', '-q' , '-d'] )
+    ## run_pid_calib ( KAON, args = [ 'K' ,
+    ##                                '-y', '2017' , '2018' , 
+    ##                                ## '-y', '2018' , 
+    ##                                '-v', 'v9r1' , 'v9r2' ,
+    ##                                ## '-d' , 
+    ##                                ## '-f' , '50' ,
+    ##                                '-r' , r'.*(DSt|DsPhi)_K.*' , 
+    ##                                '-e' , 
+    ##                                '-g' ,
+    ##                                ## '-z'
+    ##                                ] )
 
-    ## run_pid_calib ( KAON, args = [ '-y', '2018' , 'K', '-f', '100', '-v', 'v9r2', '-q' , '-e' , '-g'] )
-    run_pid_calib ( KAON, args = [ 'K' ,
-                                   '-y', '2017' , '2018' , 
-                                   ## '-y', '2018' , 
-                                   '-v', 'v9r1' , 'v9r2' ,
-                                   ## '-d' , 
-                                   ## '-f' , '50' ,
-                                   '-r' , r'.*(DSt|DsPhi)_K.*' , 
-                                   '-e' , 
-                                   '-g' ,
-                                   ## '-z'
-                                   ] ) 
-
+    
+    run_pid_calib ( PROTON, args = [ 'P'  ,
+                                     '-c' , '9<=probe_Brunel_P/1000 && probe_Brunel_P/1000<=180' , 
+                                     '-y' , '2017' , '2018' , 
+                                     ## '-y', '2018' , 
+                                     '-v', 'v9r1' , 'v9r2' ,
+                                     ## '-d' , 
+                                     ## '-f' , '50' ,
+                                     '-e' , 
+                                     '-g' ,
+                                     ## '-z'
+                                     ] ) 
+    
+    
     logger.info ( 80 * '*')
 
 # =============================================================================

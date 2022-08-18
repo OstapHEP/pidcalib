@@ -605,6 +605,13 @@ def make_parser():
         dest      = 'Batch'      ,
         help      = "Batch processing (do not show the plots)"
         )
+    addGroup.add_argument (
+        "--chunk" ,
+        type      = int          , 
+        default   = 20           ,
+        dest      = 'ChunkSize'  ,
+        help      = "Chunk size for the parallel processing"
+        )
     
     return parser
 
@@ -624,19 +631,20 @@ def load_data ( pattern           ,
     from ostap.trees.data import Data
 
     logger.info ( 'Loading data %s ' % what  )
+    loaded = 0 
     for i , p in enumerate ( progress_bar ( tuple ( particles ) ) ) : 
         chain  = p + 'Tuple/DecayTree'
-        d      = Data ( chain , pattern , maxfiles = maxfiles , silent = False , check = False )
+        d      = Data ( chain , pattern , maxfiles = maxfiles , silent = True , check = False )
         key    = '%s/%s' % ( tag , p )
 
-        if verbose : logger.info  ( 'Loaded data [%2d/%-2d] for key %s: %s' % ( i , len ( particles ) , key , d ) )
-        else       : logger.debug ( 'Loaded data [%2d/%-2d] for key %s: %s' % ( i , len ( particles ) , key , d ) )
+        logger.debug ( 'Loaded data [%2d/%-2d] for key %s: %s' % ( i , len ( particles ) , key , d ) )        
         if not d:
             logger.warning ( 'No useful data is found for %s' % key )
             continue
 
         data [ key ] = d
-
+        loaded += len ( d.files )
+        
     return data
 
 
@@ -1033,7 +1041,8 @@ def run_pid_calib(FUNC, args=[]):
         logger.info ( "Implicit MT is enabled" ) 
 
     if config.Batch : ROOT.gROOT.SetBatch ( True )
-        
+    if ROOT.gROOT.IsBatch() : logger.info ( "ROOT is in 'batch' mode" )
+    
     return pid_calib ( FUNC , config)
 
 
@@ -1576,7 +1585,9 @@ def pid_calib ( FUNC , config ) :
     if all_variables :
         
         if config.Parallel and not config.UseFrame :
-                    
+
+            chunk_size = config.ChunkSise if 1 <= config.ChunkSize else 20
+            
             task = StatVar2Task ( all_variables )
             
             from ostap.parallel.parallel import WorkManager 
@@ -1586,7 +1597,7 @@ def pid_calib ( FUNC , config ) :
             for key in  data :
                 dk   = data [ key ] 
                 name = dk.chain_name
-                for chunk in chunked ( dk.files , 10 ) :
+                for chunk in chunked ( dk.files , chunk_size ) :
                     row   = key , name , chunk   
                     jobs.append ( row )
                     
@@ -1686,9 +1697,6 @@ def pid_calib ( FUNC , config ) :
         logger.warning ("Remove from processing %d keys due to trivial ``%s'' weight : \n%s" % ( len ( bad_keys ) ,
                                                                                                  check_weight     ,
                                                                                                  lst              ) ) 
-
-
-           
     data = data_
     keys = data.keys()
 
@@ -1719,15 +1727,16 @@ def pid_calib ( FUNC , config ) :
     ## parallel processing 
     if config.Parallel and not config.UseFrame :
 
-        task = PidCalibTask  ( fun            )
-        
+        task       = PidCalibTask  ( fun            )
+        chunk_size = config.ChunkSise if 1 <= config.ChunkSize else 20
+
         from ostap.parallel.parallel import WorkManager 
         wmgr = WorkManager   ( silent = not config.verbose , progress = True )
         jobs = []
         for key in  data :
             dk    = data [ key ] 
             name  = dk.chain_name
-            for chunk in chunked ( dk.files , 10 ) :
+            for chunk in chunked ( dk.files , chunk_size ) :
                 row   = key , name , chunk , config.UseFrame , False
                 jobs.append ( row )
                 
