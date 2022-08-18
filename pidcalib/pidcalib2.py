@@ -1586,7 +1586,7 @@ def pid_calib ( FUNC , config ) :
         
         if config.Parallel and not config.UseFrame :
 
-            chunk_size = config.ChunkSise if 1 <= config.ChunkSize else 20
+            chunk_size = config.ChunkSize if 1 <= config.ChunkSize else 20
             
             task = StatVar2Task ( all_variables )
             
@@ -1728,7 +1728,7 @@ def pid_calib ( FUNC , config ) :
     if config.Parallel and not config.UseFrame :
 
         task       = PidCalibTask  ( fun            )
-        chunk_size = config.ChunkSise if 1 <= config.ChunkSize else 20
+        chunk_size = config.ChunkSize if 1 <= config.ChunkSize else 20
 
         from ostap.parallel.parallel import WorkManager 
         wmgr = WorkManager   ( silent = not config.verbose , progress = True )
@@ -1802,12 +1802,17 @@ def pid_calib ( FUNC , config ) :
         now = datetime.datetime.now()
         with DBASE.open ( config.output ) as db:
             db [  k                                     ] = acc, rej
-            heff = 1.0 / ( 1 + rej / acc ) 
-            db [  k + ':efficiency'                     ] = heff            ## efficiency histogram
-            if   isinstance ( heff , ROOT.TH3D ) and 3 == heff.dim () :
-                db [  k + ':efficiency,z-slices'        ] = [ heff.sliceZ(i) for i in range ( 1 , heff.nbinsz() ) ]
-            elif isinstance ( heff , ROOT.TH2D ) and 2 == heff.dim () :
-                db [  k + ':efficiency,y-slices'        ] = [ heff.sliceY(i) for i in range ( 1 , heff.nbinsy() ) ]
+            heff = 1.0 / ( 1 + rej / acc )
+
+            ke = k + ':efficiency'
+            db [ ke ] = heff            ## efficiency histogram
+            
+            if   isinstance ( heff , ROOT.TH3 ) and 3 == heff.dim () :
+                kz = k + ':efficiency(z-slices)'
+                db [  kz ] = [ heff.sliceZ(i) for i in range ( 1 , heff.nbinsz() ) ]
+            elif isinstance ( heff , ROOT.TH2 ) and 2 == heff.dim () :
+                ky = k + ':efficiency(y-slices)' 
+                db [  ky ] = [ heff.sliceY(i) for i in range ( 1 , heff.nbinsy() ) ]
                                                
             db [  k + ':data'                           ] = data[k] 
             db [  k + ':conf'                           ] = config
@@ -1861,40 +1866,41 @@ def pid_calib ( FUNC , config ) :
         ROOT.gStyle.SetPalette ( 53 )
         
         with DBASE.open ( config.output , 'r') as db:
-            
+
             for k in sorted ( results ) :
                 
                 tag1 = k + ':efficiency'
-                if tag1 in db : 
-                    try :
-                        heff = db.get ( tag1 , None )
-                        if  heff and isinstance ( heff , ROOT.TH1 ) and 2 == heff.dim () :
-                            with wait ( 3 ) , use_canvas ('Sample %25s, 2D-efficiency' %  k ) :
-                                heff.draw('colz')
-                        elif heff and isinstance ( heff , ROOT.TH1 ) and 1 == heff.dim () :
-                            with wait ( 3 ) , use_canvas ('Sample %25s, 1D-efficiency' %  k ) :  heff.draw ()
-                    except :
-                        pass
+                if tag1 in db :
+                    ## try :
+                    heff = db.get ( tag1 , None )
+                    if  heff and isinstance ( heff , ROOT.TH1 ) and 2 == heff.dim () :
+                        title = 'Sample %25s, 2D-efficiency' %  k
+                        with wait ( 2 ) , use_canvas ( title ) , useStyle ('Z' ) : heff.draw('colz')
+                    elif heff and isinstance ( heff , ROOT.TH1 ) and 1 == heff.dim () :
+                        title = 'Sample %25s, 1D-efficiency' %  k
+                        with wait ( 2 ) , use_canvas ( title ) :  heff.draw ()
+                    ##except :
+                    ##    pass
                     
-                tag2 = k + ':efficiency,z-slices'
+                tag2 = k + ':efficiency(z-slices)'
                 if tag2 in db :
-                    try :
-                        zslices = db.get ( tag2 , [] )
-                        for i , zs in enumerate ( zslices ) :
-                            with wait ( 3 ) , use_canvas ('Sample %25s, 2D-efficiency, z-slice %d' % ( k , i + 1 ) ) :
-                                zs.draw('colz') 
-                    except :
-                        pass 
+                    ## try :
+                    zslices = db.get ( tag2 , [] )
+                    for i , zs in enumerate ( zslices ) :
+                        title = 'Sample %25s, 2D-efficiency, z-slice #%d' % ( k , i + 1 ) 
+                        with wait ( 2 ) , use_canvas ( title ) , useStyle ( 'Z' ): zs.draw('colz') 
+                    ##except :
+                    ##    pass 
                             
-                tag3 = k + ':efficiency,y-slices'
+                tag3 = k + ':efficiency(y-slices)'
                 if tag3 in db :
-                    try : 
-                        yslices = db.get ( tag3 , [] )
-                        for i , ys in enumerate ( yslices ) :
-                            with wait( 2 ) , use_canvas ('Sample %25s, 1D-efficiency, y-slice %d' % ( k , i+1 ) ) :
-                                ys.draw() 
-                    except :
-                        pass
+                    ## try : 
+                    yslices = db.get ( tag3 , [] )
+                    for i , ys in enumerate ( yslices ) :
+                        title = 'Sample %25s, 1D-efficiency, y-slice #%d' % ( k , i+1 )
+                        with wait( 2 ) , use_canvas ( title ) : ys.draw() 
+                    ## except :
+                    ##    pass
 
     parts = set () 
     for p in particles :
