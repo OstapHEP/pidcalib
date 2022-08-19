@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # =============================================================================
-## @file
+## @file ex_pidcalib_run1.py
 #  An example of simple script to run PIDCalib machinery
 #  Use '-h' option to know more
 #
 #  @code
-#  pid_calib1.py P -s 21 21r1  -p MagUp -c 'P_hasRich==1' 
+#  ex_pidcalib_run1.py P -s 21 21r1  -p MagUp -c 'P_hasRich==1' 
 #  @endocode
 #
 #  @author Vanya BELYAEV Ivan.Belyaev@itep.ru
 #  @date   2014-05-10  
 # =============================================================================
-""" An example of simple script to run PIDCalib machinery
+""" An example of simple script to run PIDCalib machinery for Run 1
 
-> pid_calib1.py P -s 21 21r1  -p MagUp -c 'P_hasRich==1'
+> ex_pidcalib_run1.py P -s 21 21r1  -p MagUp -c 'P_hasRich==1'
 
 Use '-h' option to know more 
 
@@ -25,12 +25,13 @@ __author__  = "Vanya BELYAEV Ivan.Belyaev@itep.ru"
 __date__    = "2011-06-07"
 __all__     = ()
 # =============================================================================
-import ROOT, cppyy
+from  pidcalib.pidcalib1 import run_pid_calib as run_pid_calib1
+import ROOT
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 # =============================================================================
 from   ostap.logger.logger import getLogger
-if '__main__' == __name__ : logger = getLogger ( 'pid_calib1' )
-else                      : logger = getLogger ( __name__     )
+if '__main__' == __name__ : logger = getLogger ( 'pidcalib_run1' )
+else                      : logger = getLogger ( __name__        )
 # =============================================================================
 ## the actual function to fill PIDcalib histograms 
 #  - it books two histogram  (3D in this case)
@@ -51,9 +52,9 @@ def  PION ( particle         ,
     #
     ## we need here ROOT and Ostap machinery!
     #
-    import ROOT
     from   ostap.core.pyrouts  import hID
     from   ostap.histos.histos import h3_axes  
+    import ROOT
     
     # 
     ## the heart of the whole game:   DEFINE PID CUTS! 
@@ -139,9 +140,9 @@ def  PROTON ( particle         ,
     #
     ## we need here ROOT and Ostap machinery!
     #
-    import ROOT
     from   ostap.core.pyrouts  import hID
     from   ostap.histos.histos import h3_axes  
+    import ROOT
     
     #
     ## the heart of the whole game: 
@@ -183,6 +184,9 @@ def  PROTON ( particle         ,
     ## fill them:
     #
 
+    vlst = [ v.name for v in vlst ]
+    vlst.reverse()
+    
     ha = dataset.project ( ha , vlst , accepted )
     hr = dataset.project ( hr , vlst , rejected )
 
@@ -204,6 +208,7 @@ def  PROTON ( particle         ,
         if ha : del ha
         if hr : del hr
 
+
     return plots   ## return plots 
 
 
@@ -222,10 +227,9 @@ if '__main__' == __name__ :
     #
     ## import function from Ostap
     #
-    from  pidcalib.pidcalib1 import run_pid_calib
 
     ## use it!
-    run_pid_calib ( PROTON , 'PIDCALIB1.db') 
+    run_pid_calib1 ( PROTON , 'PIDCALIB1.db' , args = [] ) 
 
     logger.info ( 80*'*' )
 

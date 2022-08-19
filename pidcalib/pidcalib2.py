@@ -68,8 +68,9 @@ from   ostap.plotting.canvas           import use_canvas
 from   ostap.plotting.style            import useStyle
 from   ostap.utils.utils               import wait
 from   ostap.core.meta_info            import root_info, ostap_info
+import ostap.logger.table              as     T
 import ostap.io.zipshelve              as     DBASE
-import ROOT, sys, os, abc, pprint, random  
+import ROOT, sys, os, abc, pprint, random, itertools  
 # =============================================================================
 from  ostap.logger.logger import getLogger, setLogging
 if '__main__' == __name__: logger = getLogger ( 'ostap.pidcalib2' )
@@ -199,20 +200,20 @@ samples  = {
     ## VB: version is unknown (for me). The paths are taken 2022/08/17 from
     #  https://twiki.cern.ch/twiki/bin/viewauth/LHCbPhysics/ChargedPID#Run_2_samples
     # =============================================================================================
-    'vXXX' : {
-    ## 2015 
-    'pp/2015/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision15/PIDCALIB.ROOT/00064787/0000/' , 
-    'pp/2015/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision15/PIDCALIB.ROOT/00064785/0000/' ,
-    ## 2016 all except  Jpsinopt 
-    'pp/2016/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision16/PIDCALIB.ROOT/00111823/0000/' , ## (all except Jpsinopt)    
-    'pp/2016/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision16/PIDCALIB.ROOT/00111825/0000/' , ## (all except Jpsinopt)
-    ## 2017 all except  Jpsinopt 
-    'pp/2017/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision17/PIDCALIB.ROOT/00106050/0000/' , ## (all except Jpsinopt)    
-    'pp/2017/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision17/PIDCALIB.ROOT/00106052/0000/' , ## (all except Jpsinopt)
-    ## 2018 all except  Jpsinopt 
-    'pp/2018/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision18/PIDCALIB.ROOT/00109276/0000/' , ## (all except Jpsinopt)
-    'pp/2018/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision18/PIDCALIB.ROOT/00109278/0000/' , ## (all except Jpsinopt)
-    }, 
+    ## 'vXXX' : {
+    ## ## 2015                      It is v5r1  
+    ## 'pp/2015/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision15/PIDCALIB.ROOT/00064787/0000/' , 
+    ## 'pp/2015/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision15/PIDCALIB.ROOT/00064785/0000/' ,
+    ## ## 2016 all except  Jpsinopt It is v9r3 
+    ## 'pp/2016/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision16/PIDCALIB.ROOT/00111823/0000/' , ## (all except Jpsinopt)    
+    ## 'pp/2016/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision16/PIDCALIB.ROOT/00111825/0000/' , ## (all except Jpsinopt)
+    ## ## 2017 all except  Jpsinopt It is v9r1 
+    ## 'pp/2017/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision17/PIDCALIB.ROOT/00106050/0000/' , ## (all except Jpsinopt)    
+    # #'pp/2017/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision17/PIDCALIB.ROOT/00106052/0000/' , ## (all except Jpsinopt)
+    ## ## 2018 all except  Jpsinopt    It is v9r2 
+    ## 'pp/2018/MagUp'   : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision18/PIDCALIB.ROOT/00109276/0000/' , ## (all except Jpsinopt)
+    ## 'pp/2018/MagDown' : '/eos/lhcb/grid/prod/lhcb/LHCb/Collision18/PIDCALIB.ROOT/00109278/0000/' , ## (all except Jpsinopt)
+    ## }, 
     ## 
     'vXXX_nopt' : {
     ## 2016 only Jpsinopt 
@@ -281,7 +282,7 @@ PARTICLES = {
     2016   : {
     'ELECTRONS' : [ 'B_Jpsi_EM', 'B_Jpsi_EP' ] , 
     'KAONS'     : [ 'DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP' ] , 
-    'MUONS'     : [ 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP', 'Jpsinopt_MuM', 'Jpsinopt_MuP' ] ,
+    'MUONS'     : [ 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP' ] , ## 'Jpsinopt_MuM', 'Jpsinopt_MuP' ] ,
     'PIONS'     : [ 'DSt_PiM', 'DSt_PiP', 'KSLL_PiM', 'KSLL_PiP' ] ,
     'PROTONS'   : [ 'Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar',
                     'Lam0LL_P', 'Lam0LL_Pbar',
@@ -292,7 +293,7 @@ PARTICLES = {
     2018   : {
     'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP', 'OmegaDDD_KM', 'OmegaDDD_KP', 'OmegaL_KM', 'OmegaL_KP'] , 
     'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP',
-                 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP', 'Jpsinopt_MuM', 'Jpsinopt_MuP'] , 
+                 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP'] , ## 'Jpsinopt_MuM', 'Jpsinopt_MuP'] , 
     'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSDD_PiM', 'KSDD_PiP', 'KSLL_PiM', 'KSLL_PiP'] , 
     'PROTONS' : ['Lam0DD_HPT_P', 'Lam0DD_HPT_Pbar', 'Lam0DD_P', 'Lam0DD_Pbar', 'Lam0DD_VHPT_P',
                  'Lam0DD_VHPT_Pbar', 'Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar',
@@ -304,7 +305,7 @@ PARTICLES = {
     2017   : {
     'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP', 'OmegaDDD_KM', 'OmegaDDD_KP', 'OmegaL_KM', 'OmegaL_KP'] , 
     'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM',
-                 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP', 'Jpsinopt_MuM', 'Jpsinopt_MuP'  ] , 
+                 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP' ] , ## 'Jpsinopt_MuM', 'Jpsinopt_MuP'  ] , 
     'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSDD_PiM', 'KSDD_PiP', 'KSLL_PiM', 'KSLL_PiP' ] , 
     'PROTONS' : ['Lam0DD_HPT_P', 'Lam0DD_HPT_Pbar', 'Lam0DD_P', 'Lam0DD_Pbar',
                  'Lam0DD_VHPT_P', 'Lam0DD_VHPT_Pbar', 'Lam0LL_HPT_P',
@@ -316,7 +317,7 @@ PARTICLES = {
     2017      : {
     'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP', 'OmegaDDD_KM', 'OmegaDDD_KP', 'OmegaL_KM', 'OmegaL_KP'] , 
     'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM',
-                 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP', 'Jpsinopt_MuM', 'Jpsinopt_MuP'] , 
+                 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP' ] , ## 'Jpsinopt_MuM', 'Jpsinopt_MuP'] , 
     'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSDD_PiM', 'KSDD_PiP', 'KSLL_PiM', 'KSLL_PiP'] , 
     'PROTONS' : ['Lam0DD_HPT_P', 'Lam0DD_HPT_Pbar', 'Lam0DD_P', 'Lam0DD_Pbar', 'Lam0DD_VHPT_P',
                  'Lam0DD_VHPT_Pbar', 'Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar',
@@ -342,32 +343,32 @@ PARTICLES = {
                  'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar', 'Lc_P', 'Lc_Pbar'] , 
     }} ,
     # =========================================================================
-    'vXXX'   : {
-    2015   : {
-    'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP'] ,
-    'MUONS'   : ['B_Jpsi_MuM', 'B_Jpsi_MuP', 'Jpsi_MuM', 'Jpsi_MuP', 'Jpsinopt_MuM', 'Jpsinopt_MuP' ] ,
-    'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSLL_PiM', 'KSLL_PiP'] , 
-    'PROTONS' : ['Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar'] 
-    } ,
-    2016   : {
-    'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP'] ,
-    'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP'],
-    'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSLL_PiM', 'KSLL_PiP'] ,                                                                                                    
-    'PROTONS' : ['Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar', 'Lc_P', 'Lc_Pbar']
-    } ,
-    2017   : {
-    'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP', 'OmegaDDD_KM', 'OmegaDDD_KP', 'OmegaL_KM', 'OmegaL_KP'] ,
-    'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP'] ,
-    'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSDD_PiM', 'KSDD_PiP', 'KSLL_PiM', 'KSLL_PiP'] ,
-    'PROTONS' : ['Lam0DD_HPT_P', 'Lam0DD_HPT_Pbar', 'Lam0DD_P', 'Lam0DD_Pbar', 'Lam0DD_VHPT_P', 'Lam0DD_VHPT_Pbar', 'Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar', 'Lc_P', 'Lc_Pbar']
-    },
-    2018   : {
-    'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP', 'OmegaDDD_KM', 'OmegaDDD_KP', 'OmegaL_KM', 'OmegaL_KP'] ,                                                                                                                                                
-    'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP'] ,
-    'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSDD_PiM', 'KSDD_PiP', 'KSLL_PiM', 'KSLL_PiP'] , 
-    'PROTONS' : ['Lam0DD_HPT_P', 'Lam0DD_HPT_Pbar', 'Lam0DD_P', 'Lam0DD_Pbar', 'Lam0DD_VHPT_P', 'Lam0DD_VHPT_Pbar', 'Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar', 'Lc_P', 'Lc_Pbar']
-    } ,
-    } , 
+    ## 'vXXX'   : {
+    ## 2015   : {
+    ## 'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP'] ,
+    ## 'MUONS'   : ['B_Jpsi_MuM', 'B_Jpsi_MuP', 'Jpsi_MuM', 'Jpsi_MuP', 'Jpsinopt_MuM', 'Jpsinopt_MuP' ] ,
+    ## 'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSLL_PiM', 'KSLL_PiP'] , 
+    ## 'PROTONS' : ['Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar'] 
+    ## } ,
+    ## 2016   : {
+    ## 'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP'] ,
+    ## 'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP'],
+    ## 'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSLL_PiM', 'KSLL_PiP'] ,                                                                                                    
+    ## 'PROTONS' : ['Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar', 'Lc_P', 'Lc_Pbar']
+    ## } ,
+    ## 2017   : {
+    ## 'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP', 'OmegaDDD_KM', 'OmegaDDD_KP', 'OmegaL_KM', 'OmegaL_KP'] ,
+    ## 'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP'] ,
+    ## 'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSDD_PiM', 'KSDD_PiP', 'KSLL_PiM', 'KSLL_PiP'] ,
+    ## 'PROTONS' : ['Lam0DD_HPT_P', 'Lam0DD_HPT_Pbar', 'Lam0DD_P', 'Lam0DD_Pbar', 'Lam0DD_VHPT_P', 'Lam0DD_VHPT_Pbar', 'Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar', 'Lc_P', 'Lc_Pbar']
+    ## },
+    ## 2018   : {
+    ## 'KAONS'   : ['DSt_KM', 'DSt_KP', 'DsPhi_KM', 'DsPhi_KP', 'OmegaDDD_KM', 'OmegaDDD_KP', 'OmegaL_KM', 'OmegaL_KP'] ,                                                                                                                                                
+    ## 'MUONS'   : ['B_Jpsi_DTF_MuM', 'B_Jpsi_DTF_MuP', 'B_Jpsi_MuM', 'B_Jpsi_MuP', 'DsPhi_MuM', 'DsPhi_MuP', 'Jpsi_MuM', 'Jpsi_MuP'] ,
+    ## 'PIONS'   : ['DSt_PiM', 'DSt_PiP', 'KSDD_PiM', 'KSDD_PiP', 'KSLL_PiM', 'KSLL_PiP'] , 
+    ## 'PROTONS' : ['Lam0DD_HPT_P', 'Lam0DD_HPT_Pbar', 'Lam0DD_P', 'Lam0DD_Pbar', 'Lam0DD_VHPT_P', 'Lam0DD_VHPT_Pbar', 'Lam0LL_HPT_P', 'Lam0LL_HPT_Pbar', 'Lam0LL_P', 'Lam0LL_Pbar', 'Lam0LL_VHPT_P', 'Lam0LL_VHPT_Pbar', 'LbLcMu_P', 'LbLcMu_Pbar', 'Lc_P', 'Lc_Pbar']
+    ## } ,
+    ## } , 
     'vXXX_nopt' : {
     2016     : {
     'MUONS'  : ['Jpsinopt_MuM', 'Jpsinopt_MuP'] 
@@ -380,6 +381,22 @@ PARTICLES = {
     } ,
     } ,
     }
+
+# =============================================================================
+## get the list of known processing versions  
+known_eos_versions  = set ( samples.keys () ) | set ( PARTICLES.keys() )
+known_grid_versions = set ()
+import re
+pat = re.compile ( r'(pp|pA|Ap)/\d{4}/(?P<version>\S+)/MagDown' , re.IGNORECASE )
+for key in bookkeeping_paths :
+    m = pat.search ( key )
+    if m : known_grid_versions.add ( m.group ( 'version' ) )
+known_versions      = known_eos_versions | known_grid_versions
+
+known_eos_versions  = tuple ( sorted ( known_eos_versions  ) ) 
+known_grid_versions = tuple ( sorted ( known_grid_versions ) ) 
+known_versions      = tuple ( sorted ( known_versions      ) ) 
+
 
 # =============================================================================
 ## TTree names
@@ -513,7 +530,7 @@ def make_parser():
         default = []           ,
         metavar = '<VERSIONS>' ,
         nargs   = '*'          ,
-        help    = "Versions of PIDCalibTuples to be used")
+        help    = "Versions of PIDCalibTuples to be used %s" % str ( known_versions ) )
     
     parser.add_argument(
         '-s'                       ,
@@ -572,7 +589,7 @@ def make_parser():
         dest    = "Parallel"   ,
         action  = "store_true" ,
         default = False        ,
-        help    = "Use parallelization (does not work with GRID files,``UseEos'' is needed)" )
+        help    = "Use parallelization (does not work with GRID files,'UseEos' is needed)" )
     
     addGroup.add_argument (
         "-u"   ,
@@ -595,7 +612,7 @@ def make_parser():
         action   = "store_true" , 
         default  = False        ,
         dest     = 'UseGrid'    ,
-        help     = "Use GRID to get data (add ``UseEos'' is want to process in parallel)"
+        help     = "Use GRID to get data (add 'UseEos' is want to process in parallel)"
         )
     addGroup.add_argument (
         "-b"      ,
@@ -666,6 +683,12 @@ def load_samples ( particles,
         try:
             from pidcalib.grid import hasGridProxy
             if hasGridProxy():
+                
+                if not all ( ( v in known_grid_versions ) for v in versions ) :
+                    unknown  = [ v for v in versions if not v in known_grid_versions ] 
+                    logger.error ( "Versions %s are unknown for GRID! skip them" % unknown  ) 
+                    versions = [ v for v in versions if     v in known_grid_versions ] 
+                    
                 return load_samples_from_grid ( particles  = particles  ,
                                                 years      = years      ,
                                                 collisions = collisions ,
@@ -676,20 +699,25 @@ def load_samples ( particles,
                                                 use_eos    = use_eos    )
             logger.error ("No grid proxy, switch off to local look-up")            
         except ImportError:
-            logger.warning("Cannot import ``grid'', switch off to local look-up")
+            logger.warning("Cannot import 'grid', switch off to local look-up")
             
     if 0 < maxfiles:
         logger.warning('Only max=%d files per configuration will be processed!' % maxfiles)
 
     maxfiles = maxfiles if 0 < maxfiles else 1000000
     
+    if not all ( ( v in known_eos_versions ) for v in versions ) :
+        unknown  = [ v for v in versions if not v in known_eos_versions ] 
+        logger.error ( "Versions %s are unknown for EOS! skip them" % unknown  ) 
+        versions = [ v for v in versions if     v in known_eos_versions ] 
+        
     data     = {}
     for y in years:
         for c in collisions:
             for p in polarity:
                 tag = '%s/%s/%s' % (c, y, p)                
                 for version in versions :                    
-                    if not version in samples : continue
+                    if not version in samples : continue                    
                     
                     fdir = samples[version].get(tag, None)
                     if not fdir:
@@ -708,13 +736,14 @@ def load_samples ( particles,
                     
                     ## load files
                     what = 'Collisions=%s, Year=%s, Polarity=%s, Version=%s' % ( c , y, p , version )
-                    new_data = load_data ( pattern     ,
-                                           particles   ,
-                                           tag         ,
-                                           maxfiles    ,
-                                           verbose     ,
-                                           data        ,
-                                           what = what )
+                    key  = '%s/%s/%s/%s' % ( c, y, version , p )                     
+                    new_data = load_data ( pattern             ,
+                                           particles           ,
+                                           tag      = key      , 
+                                           maxfiles = maxfiles ,
+                                           verbose  = verbose  ,
+                                           data     = data     ,
+                                           what     = what     )
                     data.update ( new_data )
                     del new_data
 
@@ -785,7 +814,7 @@ def load_from_grid ( path             ,
     try:
         from pidcalib.grid import BKRequest, filesFromBK
     except ImportError:
-        logger.error("Can't import from ``pidcalib.grid''")
+        logger.error("Can't import from 'pidcalib.grid'")
         return {}
 
     logger.debug('Make a try with path "%s"' % path)
@@ -862,7 +891,7 @@ def get_eos_dirs ( silent = False )  :
     try : 
         from pidcalib.grid import BKRequest, filesFromBK, hasGridProxy 
     except ImportError:
-        logger.error("Can't import from ``pidcalib.grid''")
+        logger.error("Can't import from 'pidcalib.grid'")
         return {}
 
     if not hasGridProxy () :
@@ -992,20 +1021,14 @@ def run_pid_calib(FUNC, args=[]):
     
     good_years = ( 2015 , 2016 , 2017 , 2018 ) 
     if not all (  ( y in good_years )  for y in config.years ) :
-        parser.exit ( message = "Invalid ``YEARS'': %s" % str ( config.years ) ) 
+        parser.exit ( message = "Invalid 'YEARS': %s" % str ( config.years ) ) 
 
-    ## config.UseFrame = False
     if config.UseFrame and not (6,25) <= root_info :
         config.UseFrame = False
         logger.warning('Processing via DataFrame is disabled!')
     
-        
-    ## if config.Parallel :
-    ##     if not config.UseEos :
-    ##         logger.warning("Parallel processing is disabled (due to ``UseEos'' setting)")
-    ##         config.Parallel = False
-            
-    if config.Parallel and (3,6) <= sys.version_info :
+
+    if config.Parallel and  ( 3 , 6 ) <= sys.version_info :
         
         try :
             import dill
@@ -1025,7 +1048,6 @@ def run_pid_calib(FUNC, args=[]):
     for k in sorted ( conf ) :
         row = k , str ( conf [ k ] )
         table.append ( row ) 
-    import ostap.logger.table as T
     table = T.table ( table , title = 'Parser configuration', prefix = '# ' , alignment = 'rw' , indent = '' )
     logger.info ( 'Parser configuration\n%s' % table ) 
  
@@ -1315,7 +1337,7 @@ def pid_calib ( FUNC , config ) :
     elif 'MU+' == particle.upper ( ) : particles = muons_plus
     elif 'MU-' == particle.upper ( ) : particles = muons_minus
     else :
-        logger.error ("Unknown PARTICLE ``%s''" % particle )
+        logger.error ("Unknown PARTICLE '%s'" % particle )
         
     polarity = config.polarity
 
@@ -1475,10 +1497,11 @@ def pid_calib ( FUNC , config ) :
     ## Load PID samples
     # =========================================================================
     if config.TestPath:
+        
         try:
             from pidcalib.grid import BKRequest, filesFromBK, hasGridProxy
         except ImportError:
-            logger.error( "Cannot import from ``pidcalib.grid'': for ``testpath'' one needs to use Bender" )
+            logger.error( "Cannot import from 'pidcalib.grid!" )
             return {}
         if not hasGridProxy():
             logger.error("Valid GRID proxy is required!")
@@ -1499,7 +1522,15 @@ def pid_calib ( FUNC , config ) :
             tag      = 'TESTFILES'     ,
             maxfiles = config.MaxFiles ,
             verbose  = config.verbose  )
+        
     else :
+
+        versions = config.versions 
+        if not all ( ( v in known_versions ) for v in versions ) :
+            unknown  = [ v for v in versions if not v in known_versions ] 
+            logger.error ( "Versions %s are unknown!! skip them" % unknown  ) 
+            config.versions = [ v for v in versions if     v in known_versions ]
+            
         data = load_samples (
             particles                    ,
             years      = config.years    ,
@@ -1667,7 +1698,7 @@ def pid_calib ( FUNC , config ) :
             cc = statvars [ check_weight ]
             mn , mx = cc.minmax()
             if mn == mx : 
-                logger.error ( "%-35s: %20s is ``trivial'': mean/(min,max)=%s/(%s,%s), skip it!"
+                logger.error ( "%-35s: %20s is 'trivial': mean/(min,max)=%s/(%s,%s), skip it!"
                                % ( k , check_weight , cc.mean().toString('%5.3f+-%-5.3f')  , cc.min() , cc.max() ) )
                 bad_keys.add ( k ) 
                 
@@ -1694,7 +1725,7 @@ def pid_calib ( FUNC , config ) :
 
     if bad_keys :
         lst  = pprint.pformat ( list ( bad_keys ) ) 
-        logger.warning ("Remove from processing %d keys due to trivial ``%s'' weight : \n%s" % ( len ( bad_keys ) ,
+        logger.warning ("Remove from processing %d keys due to trivial '%s' weight : \n%s" % ( len ( bad_keys ) ,
                                                                                                  check_weight     ,
                                                                                                  lst              ) ) 
     data = data_
@@ -1721,7 +1752,7 @@ def pid_calib ( FUNC , config ) :
                 
             import ostap.logger.table as T
             table = T.table ( table , title = "Statistics for %s" % var , prefix = '# ' , alignment = 'lrcc'  )
-            logger.info ( "Statistics for ``%s'' variable\n%s" %  ( var , table ) ) 
+            logger.info ( "Statistics for '%s' variable\n%s" %  ( var , table ) ) 
             
 
     ## parallel processing 
@@ -1759,148 +1790,115 @@ def pid_calib ( FUNC , config ) :
                 results [ k ] = acc.clone() , rej.clone() 
                 
     # =========================================================================
-    keys = results.keys()
 
-    tacc     = None
-    trej     = None
+    ## combine various subsamples into single one 
+    total = {} 
 
     processed = set()
-    header  = ( 'Sample' , '#accepted [10^3]' , '#rejected [10^3]' , '<glob-eff> [%]'  , '<diff-eff> [%]' , 'min [%]' , 'max [%]' )
-    
-    report  = [ header ]
 
     for k in sorted ( results ) : 
 
         acc , rej = results [ k ]
         
-        na = acc.accumulate () / 1000
-        nr = rej.accumulate () / 1000
+        tkey , _ , _ = k.rpartition ( '/' ) 
+        tkey = '%s/TOTAL_%s' % ( tkey , config.particle  )
 
-        heff = 100. / (1. + rej / acc )
-        eeff = 100. / (1. + nr  / na  )
-        hst  = heff.stat()
-
-        row = k , \
-              na.toString   ( '%10.2f +/- %-6.2f' ) ,           \
-              nr.toString   ( '%10.2f +/- %-6.2f' ) ,           \
-              eeff.toString ( '%6.2f +/- %-5.2f'  ) ,           \
-              '%6.2f +/- %-5.2f' % ( hst.mean() , hst.rms() ) , \
-              '%+6.2f'           %   hst.min()      ,           \
-              '%+6.2f'           %   hst.max()
-        
-        report.append ( row )
-        
-        if    tacc : tacc += acc
-        else       : tacc = acc.clone()
-
-        if    trej : trej += rej
-        else       : trej = rej.clone()
+        if not tkey in total : total[tkey] = acc.clone() , rej.clone()
+        else : 
+            a , r = total [ tkey ]
+            a += acc
+            r += rej
+            total [ tkey ] = a , r 
 
         processed.add ( k )
         
-        import datetime
-        now = datetime.datetime.now()
         with DBASE.open ( config.output ) as db:
-            db [  k                                     ] = acc, rej
-            heff = 1.0 / ( 1 + rej / acc )
 
-            ke = k + ':efficiency'
-            db [ ke ] = heff            ## efficiency histogram
+            db [  k           ] = acc, rej
+            db [  k + ':data' ] = data[k] 
+
             
-            if   isinstance ( heff , ROOT.TH3 ) and 3 == heff.dim () :
-                kz = k + ':efficiency(z-slices)'
-                db [  kz ] = [ heff.sliceZ(i) for i in range ( 1 , heff.nbinsz() ) ]
-            elif isinstance ( heff , ROOT.TH2 ) and 2 == heff.dim () :
-                ky = k + ':efficiency(y-slices)' 
-                db [  ky ] = [ heff.sliceY(i) for i in range ( 1 , heff.nbinsy() ) ]
-                                               
-            db [  k + ':data'                           ] = data[k] 
-            db [  k + ':conf'                           ] = config
-            db [ 'TOTAL_%s'           % config.particle ] = tacc, trej       ## accumulate 
-            db [ 'TOTAL_%s:keys'      % config.particle ] = tuple ( keys  ) 
-            db [ 'TOTAL_%s:files'     % config.particle ] = data[k].files 
-            db [ 'TOTAL_%s:conf'      % config.particle ] = config
-            db [ 'TOTAL_%s:created'   % config.particle ] = now
-            db [ 'TOTAL_%s:processed' % config.particle ] = processed
+    header  = ( 'Sample' , '#accepted [10^3]' , '#rejected [10^3]' , '<glob-eff> [%]'  , '<diff-eff> [%]' , 'min [%]' , 'max [%]' )
+    report  = [ header ]
 
-            if   config.TestFiles : db [ 'TESTFILES'] = config.TestFiles
-            elif config.TestPath  : db [ 'TESTPATH' ] = config.TestPath
-
+    ## store "combined" results, (just for illustration) and collect statistics 
+    if results and os.path.exists ( config.output ) :
+        with DBASE.open ( config.output ) as db :
+            
+            ## store total results 
+            for key in total: db [ key] = total [ key ] 
+            
+            ## update some results & make statistics 
+            for key in itertools.chain ( results , total ) :
                 
-    if os.path.exists ( config.output ) :
-        with DBASE.open ( config.output , 'r') as db:
-            try:
-                key     = 'TOTAL_%s' % config.particle
-                ta , tr = db [ key ]
-
-                na = ta.accumulate () / 1000
-                nr = tr.accumulate () / 1000
-
-                heff = 100. / (1. + tr / ta)
-                eeff = 100. / (1. + nr / na)
+                if not key in db : continue
                 
-                hst = heff.stat()
-                del heff
+                hacc , hrej = db [ key ]
+                
+                heff = 1.0 / ( 1 + hrej / hacc )
+                
+                db [ '%s:efficiency'% key ] = heff  ## ATTENTION! store it! 
+                
+                na   = hacc.accumulate () / 1000
+                nr   = hrej.accumulate () / 1000
+                
+                heff = 100. / (1. + hrej / hacc )
+                eeff = 100. / (1. + nr   / na  )
+                hst  = heff.stat()
                 
                 row = key , \
                       na.toString   ( '%10.2f +/- %-6.2f' ) ,           \
                       nr.toString   ( '%10.2f +/- %-6.2f' ) ,           \
-                      eeff.toString (  '%6.2f +/- %-5.2f' ) ,           \
+                      eeff.toString ( '%6.2f +/- %-5.2f'  ) ,           \
                       '%6.2f +/- %-5.2f' % ( hst.mean() , hst.rms() ) , \
-                      '%+6.2f'  % hst.min()                 ,           \
-                      '%+6.2f'  % hst.max()
+                      '%+6.2f'           %   hst.min()      ,           \
+                      '%+6.2f'           %   hst.max()
                 
                 report.append ( row )
                 
-                logger.info('Output DBASE with results: %s' % config.output )
-                db.ls ()
-            except:
-                pass
+            if   config.TestFiles : db [ 'TESTFILES'] = config.TestFiles
+            elif config.TestPath  : db [ 'TESTPATH' ] = config.TestPath
+            
+            db [ 'TOTAL_%s:conf'      % config.particle ] = config
+            db [ 'TOTAL_%s:processed' % config.particle ] = processed
+            db.ls()
 
     import ostap.logger.table as T
-    table = T.table ( report , title = 'Performance for %s processed samples' % len ( keys ) , prefix = '# ')
-    logger.info ( 'Performance for %s processed %s samples:\n%s' % ( len ( keys ) , particles , table ) )
+    table = T.table ( report , title = 'Performance for %s processed samples' % len ( results ) , prefix = '# ')
+    ps = set()
+    for p in processed :
+        _ , _ , s = p.rpartition ( '/' )
+        ps.add ( s )
+    ps = tuple ( sorted ( ps ) ) 
+    logger.info ( 'Performance for %s processed %s samples:\n%s' % ( len ( ps ) , list ( ps ) , table ) )
 
-    if config.verbose and os.path.exists ( config.output ) and not ROOT.gROOT.IsBatch () :
+    if total and config.verbose and os.path.exists ( config.output ) and not ROOT.gROOT.IsBatch () :
         
         ROOT.gStyle.SetPalette ( 53 )
         
         with DBASE.open ( config.output , 'r') as db:
 
-            for k in sorted ( results ) :
+            for k in sorted ( total  ) :
+
+                tag = k + ':efficiency'
+                if not tag in db : continue
                 
-                tag1 = k + ':efficiency'
-                if tag1 in db :
-                    ## try :
-                    heff = db.get ( tag1 , None )
-                    if  heff and isinstance ( heff , ROOT.TH1 ) and 2 == heff.dim () :
-                        title = 'Sample %25s, 2D-efficiency' %  k
-                        with wait ( 2 ) , use_canvas ( title ) , useStyle ('Z' ) : heff.draw('colz')
-                    elif heff and isinstance ( heff , ROOT.TH1 ) and 1 == heff.dim () :
-                        title = 'Sample %25s, 1D-efficiency' %  k
-                        with wait ( 2 ) , use_canvas ( title ) :  heff.draw ()
-                    ##except :
-                    ##    pass
-                    
-                tag2 = k + ':efficiency(z-slices)'
-                if tag2 in db :
-                    ## try :
-                    zslices = db.get ( tag2 , [] )
-                    for i , zs in enumerate ( zslices ) :
+                heff = db.get ( tag , None )
+                if     not heff                           : continue
+                elif   not isinstance ( heff , ROOT.TH1 ) : continue 
+                elif   3 == heff.dim () :
+                    for i in range ( 1 , heff.nbinsz () ) :
                         title = 'Sample %25s, 2D-efficiency, z-slice #%d' % ( k , i + 1 ) 
-                        with wait ( 2 ) , use_canvas ( title ) , useStyle ( 'Z' ): zs.draw('colz') 
-                    ##except :
-                    ##    pass 
-                            
-                tag3 = k + ':efficiency(y-slices)'
-                if tag3 in db :
-                    ## try : 
-                    yslices = db.get ( tag3 , [] )
-                    for i , ys in enumerate ( yslices ) :
-                        title = 'Sample %25s, 1D-efficiency, y-slice #%d' % ( k , i+1 )
-                        with wait( 2 ) , use_canvas ( title ) : ys.draw() 
-                    ## except :
-                    ##    pass
+                        zs = heff.sliceZ ( i )
+                        with wait ( 2 ) , use_canvas ( title ) , useStyle ( 'Z' ) : zs.draw('colz') 
+                elif 2 == heff.dim () :
+                    for i in range ( 1 , heff.nbinsy () ) :
+                        title = 'Sample %25s, 1D-efficiency, y-slice #%d' % ( k , i + 1 ) 
+                        ys = heff.sliceY ( i )
+                        with wait ( 2 ) , use_canvas ( title ) : ys.draw('') 
+                elif 1 == heff.dim () :
+                    title = 'Sample %25s, 1D-efficiency' % ( k ) 
+                    with wait ( 2 ) , use_canvas ( title ) : heff.draw() 
 
     parts = set () 
     for p in particles :
@@ -2029,11 +2027,11 @@ class PARTICLE ( object )  :
     def run ( self , data , use_frame = True , parallel = False ) :
         """Abstract method: process the data
         - `data` : input data `TChain`
-        - return tuple of histograms  with ``accepted'' and ``rejected'' distributions
+        - return tuple of histograms  with 'accepted' and ``rejected'' distributions
         """
-        import ROOT
         import ostap.core.pyrouts
         from   ostap.core.meta_info import root_info 
+        import ROOT
         #
         ## we need here ROOT and Ostap machinery!
         #
@@ -2078,23 +2076,23 @@ class PARTICLE ( object )  :
 
     @property
     def accepted ( self ) :
-        """``accepted'' : configuration of ``accepted'' sample"""
+        """'accepted' : configuration of ``accepted'' sample"""
         return self.__accepted
     @property
     def rejected ( self ) :
-        """``rejected'' : configuration of ``rejected'' sample"""
+        """'rejected' : configuration of ``rejected'' sample"""
         return self.__rejected
     @property
     def cuts     ( self ) :
-        """``cuts'' : cuts to be applied """
+        """'cuts' : cuts to be applied """
         return self.__cuts    
     @property
     def weight   ( self ) :
-        """``weight'' : actual (s)weight to select signal events"""
+        """'weight' : actual (s)weight to select signal events"""
         return self.__weight
     @property
     def check_weight ( self ) :
-        """``check_weight'' : check the weight before exectution"""
+        """'check_weight' : check the weight before exectution"""
         return self.__check_weight
     
 # =============================================================================
@@ -2145,11 +2143,11 @@ class PARTICLE_1D(PARTICLE):
         
     @property
     def xvar ( self ) :
-        """``xvar'' : x-variable for efficiency histograms"""
+        """'xvar' : x-variable for efficiency histograms"""
         return self.__xvar 
     @property
     def xbins ( self ) :
-        """``xbins'' : binning for x-variable for efficiency histograms"""
+        """'xbins' : binning for x-variable for efficiency histograms"""
         return self.__xbins
         
     ## 
@@ -2212,11 +2210,11 @@ class PARTICLE_2D(PARTICLE_1D):
  
     @property
     def yvar ( self ) :
-        """``yvar'' : y-variable for efficiency histograms"""
+        """'yvar' : y-variable for efficiency histograms"""
         return self.__yvar 
     @property
     def ybins ( self ) :
-        """``ybins'' : binning for y-variable for efficiency histograms"""
+        """'ybins' : binning for y-variable for efficiency histograms"""
         return self.__ybins
  
     ## 
@@ -2280,11 +2278,11 @@ class PARTICLE_3D(PARTICLE_2D):
         
     @property
     def zvar ( self ) :
-        """``zvar'' : z-variable for efficiency histograms"""
+        """'zvar' : z-variable for efficiency histograms"""
         return self.__zvar 
     @property
     def zbins ( self ) :
-        """``zbins'' : binning for z-variable for efficiency histograms"""
+        """'zbins' : binning for z-variable for efficiency histograms"""
         return self.__zbins
 
     ## 

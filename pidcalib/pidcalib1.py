@@ -54,24 +54,30 @@ __all__     = (
     'ex_func2'    , ## another example of end-user function 
     )
 # =============================================================================
-import ROOT, os, sys 
+from   builtins              import range
+import ostap.core.pyrouts
+import ostap.logger.table    as     T 
+import ostap.io.zipshelve    as     DBASE
+from   ostap.plotting.canvas import use_canvas
+from   ostap.plotting.style  import useStyle
+from   ostap.utils.utils     import wait
+import ROOT, os, sys, glob, itertools   
+# =============================================================================
 from   ostap.logger.logger import getLogger, setLogging 
 if '__main__' == __name__ : logger = getLogger ( 'ostap.pidcalib1' )
 else                      : logger = getLogger ( __name__          )
 # =============================================================================
-assert sys.version_info < (3,0), 'Python3 is not supported by Urania (yet?)'
-# =============================================================================
 
-if sys.version_info < ( 3,0 ) :
+if sys.version_info < ( 3 , 0 ) :
     import itertools
     itertools.zip_longest = itertools.izip_longest
-    logger.warning ("fix ``zip_longest'' ")
+    logger.warning ("patch 'zip_longest'")
     
 if ( 3,0 ) <= sys.version_info :
     
     import builtins 
     sys.modules[ 'exceptions' ] = builtins
-    logger.warning ("fix ``exceptions'' ")
+    logger.warning ("patch 'exceptions'")
     
     import pickle
     _old_load_ = pickle.load
@@ -80,35 +86,11 @@ if ( 3,0 ) <= sys.version_info :
         else                    : _old_load_ ( what , *args , encoding = 'latin1' , **kwargs )
         
     pickle.load = _new_load_
-    logger.warning ("fix ``pickle.load'' ")
+    logger.warning ("patch 'pickle.load'")
 # =============================================================================
-import ostap.core.pyrouts 
-# =============================================================================
+## default directory for PIDPerfScripts 
+perfscriptsroot = '/cvmfs/lhcb.cern.ch/lib/lhcb/URANIA/URANIA_v10r1/PIDCalib/PIDPerfScripts'
 
-    
-# =============================================================================
-root_dir = os.getenv ( 'PIDPERFSCRIPTSROOT' , '' )
-if not root_dir :
-    try :
-        import PIDPerfScript
-        path = os.path.dirname ( os.path.abspath (  PIDPerfScript.__file__ ) )
-        logger.info ( 'Set PIDPERFSCRIPTROOT to be %s' % path )
-        os.environ[ 'PIDPERFSCRIPTROOT' ] = path 
-    except :
-        pass
-
-root_dir = os.getenv ( 'PIDPERFSCRIPTSROOT' , '' )
-assert root_dir and os.path.exists ( root_dir ) and os.path.isdir ( root_dir ) ,\
-       'Invalid value for PIDPERFSCRIPTROOT %s' % root_dir
-
-pyroot_dir = root_dir + '/python'
-if not pyroot_dir  in sys.path :
-    logger.info ( 'Add %s to the sys.path' % pyroot_dir ) 
-    sys.path.insert ( 0 , pyroot_dir )
-
-pkl_dir = root_dir + '/pklfiles'
-assert os.path.exists ( pkl_dir ) and os.path.isdir ( pkl_dir ), \
-       'No pickle directory %s' % pkl_dir
 
 # ============================================================================
 ## prepare the parser
@@ -122,15 +104,6 @@ def makeParser () :
     """
     import argparse, os, sys
 
-    
-    for v in (
-        ##'CALIBDATASCRIPTSROOT' ,
-        ##'PIDPERFTOOLSROOT'     ,
-        ## 'PIDPERFSCRIPTSROOT'     ,
-        ) :
-        if not os.environ.has_key ( v ) :
-            logger.error ('No variable %s is defined. Check Urania environment [or build local PIDCalib/PIDPerfScripts]' % v )
-            
     parser = argparse.ArgumentParser (
         formatter_class = argparse.RawDescriptionHelpFormatter,
         prog            = os.path.basename(sys.argv[0]),
@@ -197,6 +170,13 @@ def makeParser () :
                             help    = "Save the performance histograms to directory DIR "
                             "(default: current directory)")
     
+    parser.add_argument   ( '--perfscripts'                , 
+                            dest    = 'ppsroot'            ,
+                            metavar = "PIDPERFSCRIPTSROOT" ,
+                            type    = str                  , 
+                            default = perfscriptsroot      ,
+                            help    = "Locaiton of PIDCalib/PerfScripts package" )
+    
     addGroup = parser.add_argument_group("further options")
     addGroup.add_argument ( "-q", "--quiet"           ,
                             dest    = "verbose"       ,
@@ -236,8 +216,8 @@ class PidCalibTask(Task) :
         """Actual processing"""
         ## unpack the 
 
-        import ROOT
         import ostap.core.pyrouts
+        import ROOT
         ## from   pidcalib.pidcalib2 import getDataSet
 
         dataset  = getDataSet ( index   = index          ,
@@ -401,8 +381,8 @@ def getDataSet ( particle           ,
     if verbose:
         logger.info( "Attempting to open file {0} for reading".format(fname) )
         
-    import ROOT
     import ostap.core.pyrouts 
+    import ROOT
     ## fname = fname
     ## with  ROOT.TFile.Open(fname, 'READ' ) as f :
     ##     if not f : fname = merged_fname 
@@ -413,7 +393,7 @@ def getDataSet ( particle           ,
         wsname = DataSetNameDict['WorkspaceName']
         ws     = f.Get(wsname)
         if not ws:
-            raise AttributeError ( "Uanble to retriever RooFit workspace %s" % wsname )
+            raise AttributeError ( "Unable to retrieve RooFit workspace %s" % wsname )
         
         data = ws.data('data')
         if not data:
@@ -544,7 +524,7 @@ def makePlots ( the_func         ,
                                                                  polarity   ) )
     
     from ostap.utils.progress_bar import progress_bar
-    for index in progress_bar ( xrange ( mn , mx + 1 ) ) :
+    for index in progress_bar ( range ( mn , mx + 1 ) ) :
         
         manager = memory() if verbose else NoContext()
         with manager :
@@ -558,11 +538,11 @@ def makePlots ( the_func         ,
             
             if not dataset : continue 
 
-            new_plots = plots = the_func ( particle ,
-                                           dataset  ,
-                                           plots    ,
-                                           verbose  )
-
+            new_plots = the_func ( particle ,
+                                   dataset  ,
+                                   plots    ,
+                                   verbose  )
+            
             if not plots :  plots = new_plots
             else         :
                 for oh , nh in zip ( plots , new_plots ) :
@@ -580,12 +560,18 @@ def makePlots ( the_func         ,
 #  oversimplified version of MakePerfHistsRunRange.py script from Urania/PIDCalib
 #  @author Vanya BELYAEV Ivan.Belyaev@itep.ru
 #  @date   2014-07-19
-def runPidCalib ( the_func    ,
-                  particle    ,  
-                  stripping   ,
-                  polarity    ,
-                  trackcuts   , 
-                  **config    ) :
+def runPidCalib ( the_func        ,
+                  particle         ,  
+                  stripping        ,
+                  polarity         ,
+                  trackcuts        ,
+                  RunMin   =  0    ,
+                  RunMax   = -1    ,
+                  MaxFiles = -1    ,
+                  verbose  = True  ,
+                  parallel = False ,
+                  db_name  = ''    ,
+                  **config         ) :
     """ The basic function:
     - oversimplified version of MakePerfHistsRunRange.py script from Urania/PIDCalib 
     """
@@ -605,11 +591,7 @@ def runPidCalib ( the_func    ,
     from PIDPerfScripts.DataFuncs import CheckPartType
     CheckPartType ( particle  )
     
-    runMin       = config.get ( 'RunMin'       ,     0 )
-    runMax       = config.get ( 'RunMax'       ,    -1 )
-    verbose      = config.get ( 'Verbose'      ,  True )
-    maxFiles     = config.get ( 'MaxFiles'     ,    -1 )
-
+    
     ## a bit strange treatment of runMax in PIDCalib :-(
     
     #
@@ -620,28 +602,26 @@ def runPidCalib ( the_func    ,
                           stripping                   ,
                           polarity                    ,
                           trackcuts                   ,
-                          runMin    = runMin          ,
-                          runMax    = runMax          ,
+                          runMin    = RunMin          ,
+                          runMax    = RunMax          ,
                           verbose   = verbose         ,
-                          maxFiles  = maxFiles        ,
-                          parallel  = config.get('Parallel',False) )
-    
-    if config.get('dbname',None) :
+                          maxFiles  = MaxFiles        ,
+                          parallel  = parallel        )
 
-        try :
-            import ostap.io.zipshelve as DBASE 
-            with DBASE.open ( config['dbname'] ) as db :
-                if verbose : logger.info('Save data into %s' % config['dbname'] )
+    if db_name :
+        import ostap.io.zipshelve as DBASE
+        try : 
+            with DBASE.open ( db_name ) as db :
+                if verbose : logger.info("Save data into '%s'" % db_name )
                 ##
-                key = 'PIDCalib(%s)@Stripping%s/%s' % ( particle  ,
-                                                        stripping ,
-                                                        polarity  )
-                db [ key         ] = histos
-                db [ key + 'Cuts'] = trackcuts 
+                key = '%s/%s/%s' %  ( stripping , polarity , particle ) 
+                db [ key ] = histos
+                ##
                 if verbose : db.ls()
-                
+                ##
         except :
-            logger.error('Unable to save data in DB')
+            logger.error ( "Cannot save results to '%s'" % db_name )
+            raise 
             
     return histos
 
@@ -851,34 +831,31 @@ def run_pid_calib ( FUNC , db_name = 'PID_eff.db' , args = [] ) :
     """ Run PID-calib procedure 
     """
     
-    ## from Ostap.PidCalib import makeParser, runPidCalib, saveHistos
-
-    ## needed ? probably not, to be removed... 
-    #import ROOT 
-    #RAD = ROOT.RooAbsData
-    #if RAD.Tree != RAD.getDefaultStorageType() :
-    #    logger.info ( 'DEFINE default storage type to be TTree! ') 
-    #    RAD.setDefaultStorageType ( RAD.Tree )
-        
     parser  = makeParser        ()
     if not args :
         import sys
         args =[ a for a in sys.argv[1:] if '--' != a ]  
-    config  = parser.parse_args ( args )
+    config    = parser.parse_args ( args )
 
-    setLogging(3) 
-    if config.verbose :  
-        ## import Ostap.Line 
-        ## logger.info ( __file__  + '\n' + Ostap.Line.line  ) 
-        logger.info ( 80*'*'   )
-        logger.info ( __doc__  )
-        logger.info ( 80*'*'   )
-        _vars   = vars ( config )
-        ## _keys   = _vars.keys()
-        logger.info ( 'PIDCalib configuration:')
-        for _k in sorted ( _vars )  : logger.info ( '  %15s : %-s ' % ( _k , _vars[_k] ) )
-        logger.info ( 80*'*'   )
-        setLogging(2) 
+
+    ## 1) check the PIDCalibPerfScript
+    assert config.ppsroot and os.path.exists ( config.ppsroot ) and os.path.isdir ( config.ppsroot ) , \
+           'Invalid specification for PIDPERFSCRIPTROOT %s' % config.ppsroot
+    ## 2) check existence of pickling files
+    pattern  = '%s/pklfiles/Stripping*/*.pkl' % config.ppsroot 
+    assert any ( i for i in glob.iglob ( pattern ) ) , \
+           "No pickle directories/files are found in %s" % pattern
+    ## 3) play with environment
+    os.environ['PIDPERFSCRIPTSROOT'] = config.ppsroot  
+    sys.path.insert ( 0 , os.path.join ( config.ppsroot, 'python' ) ) 
+
+    try :
+        import PIDPerfScripts
+        logger.info  ( "Module PIDPerfScripts is found at %s" % PIDPerfScripts.__file__ ) 
+    except :
+        logger.fatal ( "Module PIDPerfScripts is not accessible!")
+        raise
+    
 
     polarity  =  config.polarity
     if 'Both' == polarity  : polarity  = [ 'MagUp'  , 'MagDown' ]
@@ -887,10 +864,9 @@ def run_pid_calib ( FUNC , db_name = 'PID_eff.db' , args = [] ) :
     stripping =  config.stripping
     ##if not stripping : stripping = [ '21' , '21r1' ]
     ##if not stripping : stripping = [ '20' , '20r1' ]
-    ## 
+    
     particle  = config.particle
     
-
     particles = [ particle ]
     if   'P' == particle :
         if   '20' in stripping or '20r1' in stripping :
@@ -902,10 +878,50 @@ def run_pid_calib ( FUNC , db_name = 'PID_eff.db' , args = [] ) :
 
     logger.info ( 'Stripping versions: %s' % stripping )  
     logger.info ( 'Magnet polarities : %s' % polarity  )  
-    logger.info ( 'Particles         : %s' % particles )  
+    logger.info ( 'Particles         : %s' % particles )
+    
+    table = [ ('' , 'Value' )]
+    
+    row = 'Particle'  , str ( particles )
+    table.append ( row )
 
+    row = 'Stripping' , str ( stripping )
+    table.append ( row )
 
-    hfiles = []
+    row = 'Polarity'   , str ( polarity  )
+    table.append ( row )
+
+    if 0 < config.RunMin <= config.RunMax :        
+        row = 'Run min/max'   ,  "%s/%s" % ( config.RunMin , config.RunMax )
+        table.append ( row )
+
+    if 0 < config.MaxFiles :
+        row = 'MaxFiles'           , '%s' % config.MaxFiles 
+        table.append ( row )
+
+    if config.cuts : 
+        row = 'Additonal cuts'     , '%s' % config.cuts  
+        table.append ( row )
+
+    if '.' != config.outputDir : 
+        row = 'Output directory'   , '%s' % config.outputDir
+        table.append ( row )
+
+    
+    row = 'Verbose'                  , '%s' % config.verbose
+    table.append ( row )
+
+    row = 'PIDPERFSCRIPTSROOT' ,  os.getenv ( 'PIDPERFSCRIPTSROOT' , '' )
+    table.append ( row )
+    
+    title = 'PIDCalib configuration'
+    import ostap.logger.table as T
+    table = T.table ( table , title = 'title', prefix = '# ' , alignment = 'lw' , indent = '' )
+    logger.info ( 'title\n%s' % table ) 
+  
+    ## results  
+    results = {} 
+    hfiles  = []
     ## loop over the magnet polarities 
     for m in polarity :
         
@@ -914,6 +930,8 @@ def run_pid_calib ( FUNC , db_name = 'PID_eff.db' , args = [] ) :
             
             ## loop over calibration techniques/particle species 
             for p in particles :
+
+                key = '%s/%s/%s' %  ( s , m , p ) 
                 
                 histos = runPidCalib ( FUNC        ,
                                        p           ,
@@ -923,18 +941,102 @@ def run_pid_calib ( FUNC , db_name = 'PID_eff.db' , args = [] ) :
                                        RunMin   = config.RunMin      ,
                                        RunMax   = config.RunMax      ,
                                        MaxFiles = config.MaxFiles    ,
-                                       Verbose  = config.verbose     ,
-                                       Parallel = config.Parallel    ,
-                                       dbname   = db_name            )
+                                       verbose  = config.verbose     ,
+                                       parallel = config.Parallel    ,
+                                       db_name  = db_name            )
                 
-                hfile = saveHistos  ( histos              ,
-                                      particle  = p       ,
-                                      stripping = s       ,
-                                      polarity  = m       ,
-                                      verbose   = config.verbose ) 
-                
-                hfiles.append ( hfile )
+                results [ key ] = histos 
+                ## hfile = saveHistos  ( histos              ,
+                ##                       particle  = p       ,
+                ##                       stripping = s       ,
+                ##                       polarity  = m       ,
+                ##                       verbose   = config.verbose )                 
+                ## hfiles.append ( hfile )
 
+    total = {}
+    for k in results :
+        
+        tkey , _ , _  = k.rpartition( '/' )
+        tkey = '%s/TOTAL_%s' % ( tkey , config.particle  )
+
+        hacc , hrej = results [ k ] 
+        if not tkey in total : total[tkey] = hacc.clone() , hrej.clone()
+        else : 
+            a , r = total [ tkey ]
+            a += hacc
+            r += hrej
+            total [ tkey ] = a , r
+            
+    header  = ( 'Sample' , '#accepted [10^3]' , '#rejected [10^3]' , '<glob-eff> [%]'  , '<diff-eff> [%]' , 'min [%]' , 'max [%]' )
+    report  = [ header ]
+
+    ## store "combined" results, (just for illustration) and collect statistics 
+    if results and db_name and os.path.exists ( db_name ) :
+        with DBASE.open ( db_name ) as db :
+            ## store total results 
+            for key in total: db [ key] = total [ key ]
+            
+            ## update some results & make statistics 
+            for key in itertools.chain ( results , total ) :
+                
+                if not key in db : continue
+                
+                hacc , hrej = db [ key ]
+                heff = 1.0 / ( 1 + hrej / hacc )
+                db [ '%s:efficiency'% key ] = heff  ## ATTENTION! store it! 
+                      
+                na   = hacc.accumulate () / 1000
+                nr   = hrej.accumulate () / 1000
+                
+                heff = 100. / (1. + hrej / hacc )
+                eeff = 100. / (1. + nr   / na  )
+                hst  = heff.stat()
+                
+                row = key , \
+                      na.toString   ( '%10.2f +/- %-6.2f' ) ,           \
+                      nr.toString   ( '%10.2f +/- %-6.2f' ) ,           \
+                      eeff.toString ( '%6.2f +/- %-5.2f'  ) ,           \
+                      '%6.2f +/- %-5.2f' % ( hst.mean() , hst.rms() ) , \
+                      '%+6.2f'           %   hst.min()      ,           \
+                      '%+6.2f'           %   hst.max()
+                
+                report.append ( row )
+
+            db [ 'TOTAL_%s:conf'      % config.particle ] = config
+                        
+            db.ls() 
+            
+    table = T.table ( report , title = 'Performance for %s processed samples' % len ( results ) , prefix = '# ')
+    logger.info ( 'Performance for %s processed samples:\n%s' % ( len ( results ) , table ) )
+    
+    if total and config.verbose and os.path.exists ( db_name ) and not ROOT.gROOT.IsBatch () :
+        
+        ROOT.gStyle.SetPalette ( 53 )
+        
+        with DBASE.open ( db_name , 'r') as db:
+            for k in sorted ( total  ) :
+                
+                tag = k + ':efficiency'
+                if not tag in db : continue
+                
+                heff = db.get ( tag , None )
+                if     not heff                           : continue
+                elif   not isinstance ( heff , ROOT.TH1 ) : continue 
+                elif   3 == heff.dim () :
+                    for i in range ( 1 , heff.nbinsz () ) :
+                        title = 'Sample %25s, 2D-efficiency, z-slice #%d' % ( k , i + 1 ) 
+                        zs = heff.sliceZ ( i )
+                        with wait ( 2 ) , use_canvas ( title ) , useStyle ( 'Z' ) : zs.draw('colz') 
+                elif 2 == heff.dim () :
+                    for i in range ( 1 , heff.nbinsy () ) :
+                        title = 'Sample %25s, 1D-efficiency, y-slice #%d' % ( k , i + 1 ) 
+                        ys = heff.sliceY ( i )
+                        with wait ( 2 ) , use_canvas ( title ) : ys.draw('') 
+                elif 1 == heff.dim () :
+                    title = 'Sample %25s, 1D-efficiency' % ( k ) 
+                    with wait ( 2 ) , use_canvas ( title ) : heff.draw() 
+
+    
     logger.info('Produced files: ')
     for i in hfiles : logger.info ( i )  
 

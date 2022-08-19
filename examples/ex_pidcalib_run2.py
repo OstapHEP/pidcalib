@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # =============================================================================
-## @file
+## @file ex_pidcalib_run2.py
 #  An example of simple script to run LHCb/PIDCalib machinery for Run II samples
 #
 #  @code
-#  pid_calib2.py K -p MagUp -y 2018
+#  ex_pidcalib_run2.py K -p MagUp -y 2018
 #  @endocode
 #
 #  @author Vanya BELYAEV Ivan.Belyaev@itep.ru
@@ -13,7 +13,7 @@
 # =============================================================================
 """ An example of simple script to run LHCb/PIDCalib machinery for Run-II samples
 
-> pid_calib2.py K -p MagUp -y 2018
+> ex_pidcalib_run2.py K -p MagUp -y 2018
 
 """
 # =============================================================================
@@ -30,8 +30,8 @@ from   pidcalib.pidcalib2               import PARTICLE_3D    as PARTICLE
 import ROOT, cppyy 
 # =============================================================================
 from ostap.logger.logger import getLogger
-if '__main__' == __name__: logger = getLogger ( 'pid_calib2' )
-else                     : logger = getLogger ( __name__     )
+if '__main__' == __name__: logger = getLogger ( 'pidcalib_run2' )
+else                     : logger = getLogger ( __name__        )
 # =============================================================================
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 # =============================================================================
@@ -58,9 +58,9 @@ class PROTON (PARTICLE):
             ## 
             xvar     = 'probe_Brunel_P/1000' ,
             yvar     = 'probe_Brunel_ETA'    ,
-            zvar     = 'nTracks'             ,
+            zvar     = 'nTracks_Brunel'      ,
             ##
-            cuts     = 'probe_Brunel_hasRich' & ROOT.TCut ( 'probe_Brunel_PT>180' ) & ROOT.TCut ( cuts ) ,
+            cuts     = 'probe_Brunel_hasRich' & ROOT.TCut ( 'probe_Brunel_PT>150' ) & ROOT.TCut ( cuts ) ,
             ##
             weight   = 'probe_Brunel_sWeight' )
 
@@ -86,9 +86,9 @@ class KAON (PARTICLE):
             ##
             xvar     = 'probe_Brunel_P/1000' ,
             yvar     = 'probe_Brunel_ETA'    ,
-            zvar     = 'nTracks'             ,
+            zvar     = 'nTracks_Brunel'      ,
             ##
-            cuts     = 'probe_Brunel_hasRich' & ROOT.TCut ( 'probe_Brunel_PT>200' ) & ROOT.TCut ( cuts ) ,
+            cuts     = 'probe_Brunel_hasRich' & ROOT.TCut ( 'probe_Brunel_PT>150' ) & ROOT.TCut ( cuts ) ,
             ##
             weight   = 'probe_Brunel_sWeight' )
 
@@ -118,7 +118,7 @@ if '__main__' == __name__:
 
     
     run_pid_calib ( PROTON, args = [ 'P'  ,
-                                     '-c' , '9<=probe_Brunel_P/1000 && probe_Brunel_P/1000<=180' , 
+                                     ## '-c' , '9<=probe_Brunel_P/1000 && probe_Brunel_P/1000<=180' , 
                                      '-y' , '2017' , '2018' , 
                                      ## '-y', '2018' , 
                                      '-v', 'v9r1' , 'v9r2' ,

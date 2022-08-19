@@ -26,12 +26,12 @@ pid_calib2.py
 ```
 All command-line arguments can be inspected using `-h` flag
 ```
-pid_calib2.py -h
+ex_pidcalib_run2.py -h
 ```
 
 - If calibration samples to be taken from the Grid, one needs to ensure that scripts in the directory [scripts] are in the path, e.g. 
 ```
-PATH=<...>/scripts:$PATH pid_calib2.py ... 
+PATH=$PATH:<...>/scripts ex_pidcalib_run2.py ... 
 ```
 Also for this mode one needs 
  - access to LHCbDirac at `cernvmfs`, see the content of `dirac-command` script in [scripts] directory  
@@ -40,22 +40,16 @@ Also for this mode one needs
 - In case `/eos/lhcb/grid` is accessible directly, no Grid proxy and machinery is requred. 
 In this mode, a powerfull [pathos]-based parallelization is available, activated with `-z/--parallel` keys
 ```
-pid_calib2.py --parallel 
+ex_pidcalib_run2.py --parallel 
 ```
 
 - If `/eos/lhcb/grid` is accessible directly, but input data are requested from the Grid, the optional conversion using the comman line flag `--useeos` is possible. It opens a way for the parallel processing.
 
 ### Run I processing 
  
-For Run I processnig and environment is more complicated.
-one needfs to have access to `PidCalib/POIDCalibScripts`.
-the easiest way sto rely on released verison of `URANIA` project 
+
 ```
-lb-run URANIA/v9r0 bash -norc 
-```
-Of course one needs to ensure that [ostap] is build with the same [ROOT]
-```
-PYTHONPATH=$PYTHONPATH:$HOME/cmtuser/pidcalib PATH=$PATH:$HOME/cmtuser/pidcalib/scripts python ./examples/pid_calib1.py  P -s 20 -p MagUp -c 'P_hasRich==1'
+ex_pidcalib_run11.py  P -s 20 -p MagUp -c 'P_hasRich==1'
 ```
 
 [ostap]: https://github.com/OstapHEP/ostap
