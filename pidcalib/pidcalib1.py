@@ -125,6 +125,7 @@ def makeParser () :
                             help    = "Sets the particle type"     )
     
     parser.add_argument   ( '-s' , '--stripping'       , nargs = '+' ,
+                            default = [] , 
                             metavar = '<STRIPPING>'    , ## type=str ,                           
                             help    = "Sets the stripping version(s)"  )
     
@@ -244,13 +245,8 @@ class PidCalibTask(Task) :
             if not self.__output :
                 self.__output = results
             else :
-                hao , hro = self.__output 
-                han , hrn = results 
-                
-                hao.Add  ( han ) 
-                hro.Add  ( hrn )
-                
-                self.__output = hao , hro 
+                prev = self.__output 
+                for i , j in zip ( prev , results ) : i.Add  ( j ) 
 
 # =============================================================================
 ## a bit modified version of DataFuncs.GetDataSet from Urania/PIDCalib/PIDPerfScripts
@@ -545,8 +541,7 @@ def makePlots ( the_func         ,
             
             if not plots :  plots = new_plots
             else         :
-                for oh , nh in zip ( plots , new_plots ) :
-                    oh.Add ( nh ) 
+                for oh , nh in zip ( plots , new_plots ) : oh.Add ( nh ) 
                     
             
             dataset.reset  ()
@@ -959,13 +954,10 @@ def run_pid_calib ( FUNC , db_name = 'PID_eff.db' , args = [] ) :
         tkey , _ , _  = k.rpartition( '/' )
         tkey = '%s/TOTAL_%s' % ( tkey , config.particle  )
 
-        hacc , hrej = results [ k ] 
-        if not tkey in total : total[tkey] = hacc.clone() , hrej.clone()
-        else : 
-            a , r = total [ tkey ]
-            a += hacc
-            r += hrej
-            total [ tkey ] = a , r
+        res = results [ k ] 
+        if not tkey in total : total [ tkey ] = tuple ( h.clone() for h in res ) 
+        else :
+            for i , j in zip ( total [ tkey ] , res ) : i.Add ( j ) 
             
     header  = ( 'Sample' , '#accepted [10^3]' , '#rejected [10^3]' , '<glob-eff> [%]'  , '<diff-eff> [%]' , 'min [%]' , 'max [%]' )
     report  = [ header ]
@@ -981,7 +973,9 @@ def run_pid_calib ( FUNC , db_name = 'PID_eff.db' , args = [] ) :
                 
                 if not key in db : continue
                 
-                hacc , hrej = db [ key ]
+                res = db [ key ] 
+                hacc , hrej = res [ 0 ] , res [ 1 ]
+                
                 heff = 1.0 / ( 1 + hrej / hacc )
                 db [ '%s:efficiency'% key ] = heff  ## ATTENTION! store it! 
                       

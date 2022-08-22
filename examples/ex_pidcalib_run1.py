@@ -157,16 +157,11 @@ def  PROTON ( particle         ,
     #
     ## book histograms:
     # 
-    vlst = ROOT.RooArgList ()
-    vlst.add ( dataset.P_P     ) ## VARIABLE 
-    vlst.add ( dataset.P_Eta   ) ## VARIABLE 
-    vlst.add ( dataset.nTracks ) ## VARIABLE 
     #
     ## binning
     #
     ## binning in P 
-    pbins    = [ 10 ,  15 , 20  , 30  , 40 , 50 , 60 , 80 , 100 , 120 , 150 ]
-    pbins    = [ p*1000 for p in pbins ]
+    pbins    = [ 10 ,  15 , 20  , 30  , 40 , 50 , 60 , 80 , 100 , 120 , 150 , 200 ]
 
     ## binning in ETA 
     hbins    = [ 2.0 , 2.5 , 3.0 , 3.5 , 4.0 , 4.5 , 4.9 ]
@@ -177,19 +172,34 @@ def  PROTON ( particle         ,
     #
     ## book histograms
     #
-    ha       = h3_axes ( pbins , hbins , tbins , title = 'Accepted(%s)' % accepted ) 
-    hr       = h3_axes ( pbins , hbins , tbins , title = 'Rejected(%s)' % rejected )
+    ha = h3_axes ( pbins , hbins , tbins , title = 'Accepted(%s)' % accepted ) 
+    hr = h3_axes ( pbins , hbins , tbins , title = 'Rejected(%s)' % rejected )
 
+    hx =  ROOT.TH1D ( hID() , "Momentum"       , 200 , 0   , 200  )
+    hy =  ROOT.TH1D ( hID() , "Pseudorapidity" , 40  , 1.5 , 5.5  )
+    hz =  ROOT.TH1D ( hID() , "#tracs"         , 240 , 0   , 1200 )
+    
     #
     ## fill them:
     #
 
-    vlst = [ v.name for v in vlst ]
+    ## vlst = ROOT.RooArgList ()
+    ## vlst.add ( dataset.P_P     ) ## VARIABLE 
+    ## vlst.add ( dataset.P_Eta   ) ## VARIABLE 
+    ## vlst.add ( dataset.nTracks ) ## VARIABLE
+
+    vlst = [ dataset.P_P.name + '/1000' ,  dataset.P_Eta.name , dataset.nTracks.name ]
+
+    hx = dataset.project ( hx , vlst[0]  )
+    hy = dataset.project ( hy , vlst[1]  )
+    hz = dataset.project ( hz , vlst[2]  )
+
     vlst.reverse()
     
-    ha = dataset.project ( ha , vlst , accepted )
-    hr = dataset.project ( hr , vlst , rejected )
+    ha = dataset.project ( ha , vlst    , accepted )
+    hr = dataset.project ( hr , vlst    , rejected )
 
+    results = ha , hr , hx , hy , hz 
     #
     ## prepare the output
     #
@@ -197,16 +207,11 @@ def  PROTON ( particle         ,
         
         ha.SetName ( ha.GetTitle() )
         hr.SetName ( hr.GetTitle() )        
-        plots = [ ha , hr ]
+        plots = results 
         
     else         : ## update output plots
-        
-        plots [0] += ha
-        plots [1] += hr 
-        ha.Delete ()
-        hr.Delete ()
-        if ha : del ha
-        if hr : del hr
+
+        for i, j in zip ( plots , results ) : i += j
 
 
     return plots   ## return plots 

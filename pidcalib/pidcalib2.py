@@ -1133,16 +1133,11 @@ class PidCalibTask(Task) :
 
         while results :
             key , item  = results.popitem()
-            a   , r     = item
             if key in self.__output :
-                sa , sr = self.__output [ key ]
-                sa.Add ( a ) 
-                sr.Add ( r ) 
-                self.__output [ key ] = sa , sr
-                del a
-                del r 
+                prev = self.__output [ key ]
+                for i , j in zip ( prev , item ) : i.Add ( j )
             else  :
-                self.__output [ key ] =  a ,  r 
+                self.__output [ key ] =  item 
 
 
 # =============================================================================
@@ -1786,8 +1781,8 @@ def pid_calib ( FUNC , config ) :
                 
                 d         = data [ k ]
                 
-                acc , rej = fun.run ( d.chain , use_frame = config.UseFrame , parallel = False )
-                results [ k ] = acc.clone() , rej.clone() 
+                res = fun.run ( d.chain , use_frame = config.UseFrame , parallel = False )
+                results [ k ] = tuple ( h.clone() for h in res ) 
                 
     # =========================================================================
 
@@ -1798,23 +1793,20 @@ def pid_calib ( FUNC , config ) :
 
     for k in sorted ( results ) : 
 
-        acc , rej = results [ k ]
-        
         tkey , _ , _ = k.rpartition ( '/' ) 
         tkey = '%s/TOTAL_%s' % ( tkey , config.particle  )
+        
+        res  = results [ k ]
 
-        if not tkey in total : total[tkey] = acc.clone() , rej.clone()
-        else : 
-            a , r = total [ tkey ]
-            a += acc
-            r += rej
-            total [ tkey ] = a , r 
+        if not tkey in total : total [ tkey ] = tuple ( h.clone() for h in res ) 
+        else :
+            for i, j in zip (  total [ tkey ]  , res ) : i.Add ( j ) 
 
         processed.add ( k )
         
         with DBASE.open ( config.output ) as db:
 
-            db [  k           ] = acc, rej
+            db [  k           ] = res 
             db [  k + ':data' ] = data[k] 
 
             
@@ -1833,7 +1825,8 @@ def pid_calib ( FUNC , config ) :
                 
                 if not key in db : continue
                 
-                hacc , hrej = db [ key ]
+                res = db [key] 
+                hacc , hrej = res [ 0 ] , res [ 1 ] 
                 
                 heff = 1.0 / ( 1 + hrej / hacc )
                 
@@ -1927,10 +1920,6 @@ def pid_calib ( FUNC , config ) :
     row   =  'CUTS' , fun.cuts
     table.append ( row )
 
-    ## if config.cuts :
-    ##    row   =  'Addtional cuts' , config.cuts 
-    ##    table.append ( row )
-                 
     row   =  'WEIGHT' , fun.weight 
     table.append ( row )
 
@@ -2035,9 +2024,12 @@ class PARTICLE ( object )  :
         #
         ## we need here ROOT and Ostap machinery!
         #
-        self.ha = self.ha.clone()
-        self.hr = self.hr.clone()
+        self.ha    = self.ha.clone()
+        self.hr    = self.hr.clone()
+        self.haxes = tuple ( h.clone() for h in self.haxes ) 
 
+        variables = self.variables ()
+        
         if ( 6 , 25 ) <= root_info  and use_frame :
             
             from ostap.frames.frames import DataFrame, frame_project         
@@ -2047,32 +2039,31 @@ class PARTICLE ( object )  :
             
             if self.cuts : current = current.Filter ( self.cuts ) 
             
-            vars     = self.variables()
+            vars_acc = variables + ( self.accepted , ) 
+            vars_rej = variables + ( self.rejected , )
             
-            vars_acc = vars + ( self.accepted , ) 
-            vars_rej = vars + ( self.rejected , )
+            action_acc   = frame_project ( current  , self.ha.model() , *vars_acc )
+            action_rej   = frame_project ( current  , self.hr.model() , *vars_rej ) 
             
-            action_acc = frame_project ( current  , self.ha.model() , *vars_acc )
-            action_rej = frame_project ( current  , self.hr.model() , *vars_rej ) 
+            more_actions = [ frame_project ( current , h.model , v , self.weight ) for h,v in zip ( self.haxes , variables ) ] 
             
-            ha = action_acc.GetValue()
-            hr = action_rej.GetValue()
+            ha      = action_acc.GetValue()
+            hr      = action_rej.GetValue()
+            more    = tuple ( a.GetValue() for a in more_actions )
             
         elif parallel : 
 
             na , ha = data.pproject ( self.ha , self.variables () , self.accepted , use_frame = False )
             nr , hr = data.pproject ( self.hr , self.variables () , self.rejected , use_frame = False )
-
+            more    = [ data.pproject ( h , v , self.weight , use_frame = False )[1] for h,v in zip ( self.haxes , variables ) ]
+            
         else : 
 
             na , ha = data. project ( self.ha , self.variables () , self.accepted , use_frame = False )
             nr , hr = data. project ( self.hr , self.variables () , self.rejected , use_frame = False )
+            more    = [ data.project  ( h , v , self.weight , use_frame = False )[1] for h,v in zip ( self.haxes , variables ) ]
 
-
-        ## ha . SetName ( "Accepted" )
-        ## hr . SetName ( "Rejected" )
-
-        return ha , hr
+        return ( ha , hr ) + tuple ( more )
 
     @property
     def accepted ( self ) :
@@ -2136,9 +2127,10 @@ class PARTICLE_1D(PARTICLE):
         
         self.__xvar = str ( ROOT.TCut ( xvar ) ) 
         
-        self.ha = h1_axis ( xbins , title='Accepted(%s)' % self.accepted )
-        self.hr = h1_axis ( xbins , title='Rejected(%s)' % self.rejected ) 
-
+        self.ha    = h1_axis ( xbins , title='Accepted(%s)' % self.accepted ) 
+        self.hr    = h1_axis ( xbins , title='Rejected(%s)' % self.rejected ) 
+        self.haxes = h1_axis ( xbins , title= self.xvar                     ) , 
+        
         self.__xbins = tuple ( xbins )
         
     @property
@@ -2197,13 +2189,15 @@ class PARTICLE_2D(PARTICLE_1D):
         #
         import ROOT
         import ostap.core.pyrouts
-        from   ostap.histos.histos import h2_axes
+        from   ostap.histos.histos import h1_axis, h2_axes
         
         self.__yvar = str ( ROOT.TCut ( yvar ) ) 
 
-        self.ha = h2_axes ( xbins , ybins , title = 'Accepted(%s)' % self.accepted )
-        self.hr = h2_axes ( xbins , ybins , title = 'Rejected(%s)' % self.rejected )
-
+        self.ha    = h2_axes ( xbins , ybins , title = 'Accepted(%s)' % self.accepted )
+        self.hr    = h2_axes ( xbins , ybins , title = 'Rejected(%s)' % self.rejected )
+        self.haxes = h1_axis ( xbins , title= self.xvar ) , \
+                     h1_axis ( ybins , title= self.yvar )
+        
         ## assert 2 == len ( self.variables () ) , 'PARTCILE_2D: Invalid setting!'
        
         self.__ybins = tuple ( ybins )
@@ -2265,15 +2259,17 @@ class PARTICLE_3D(PARTICLE_2D):
         
         import ROOT
         import ostap.core.pyrouts
-        from   ostap.histos.histos import h3_axes
+        from   ostap.histos.histos import h1_axis, h3_axes
 
         self.__zvar = str ( ROOT.TCut ( zvar ) ) 
 
         self.ha = h3_axes ( xbins , ybins , zbins , title = 'Accepted(%s)' % accepted )
         self.hr = h3_axes ( xbins , ybins , zbins , title = 'Rejected(%s)' % rejected )
 
-        ## assert 3 == len ( self.variables () ) , 'PARTCILE_3D: Invalid setting!'
-        
+        self.haxes = h1_axis ( xbins , title= self.xvar ) , \
+                     h1_axis ( ybins , title= self.yvar ) , \
+                     h1_axis ( zbins , title= self.zvar )
+
         self.__zbins = tuple ( zbins )
         
     @property
