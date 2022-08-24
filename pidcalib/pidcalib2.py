@@ -76,7 +76,7 @@ from  ostap.logger.logger import getLogger, setLogging
 if '__main__' == __name__: logger = getLogger ( 'ostap.pidcalib2' )
 else                     : logger = getLogger ( __name__          )
 # =============================================================================
-assert (1,6,2) <= ostap_info , 'Ostap verion >= 1.6.3 is required!'
+assert (1,9,2,1) < ostap_info , 'Ostap verion > 1.9.2.1 is required!'
 # =============================================================================
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
@@ -625,7 +625,7 @@ def make_parser():
     addGroup.add_argument (
         "--chunk" ,
         type      = int          , 
-        default   = 20           ,
+        default   = 30           ,
         dest      = 'ChunkSize'  ,
         help      = "Chunk size for the parallel processing"
         )
@@ -648,20 +648,28 @@ def load_data ( pattern           ,
     from ostap.trees.data import Data
 
     logger.info ( 'Loading data %s ' % what  )
-    loaded = 0 
+    loaded  = 0
+    no_data = set () 
     for i , p in enumerate ( progress_bar ( tuple ( particles ) ) ) : 
-        chain  = p + 'Tuple/DecayTree'
-        d      = Data ( chain , pattern , maxfiles = maxfiles , silent = True , check = False )
         key    = '%s/%s' % ( tag , p )
-
+        chain  = p + 'Tuple/DecayTree'
+        d      = Data ( chain                  ,
+                        pattern                ,
+                        description = key      , 
+                        maxfiles    = maxfiles , 
+                        silent      = True     ,
+                        check       = False    ,
+                        parallel    = True     )
+        
         logger.debug ( 'Loaded data [%2d/%-2d] for key %s: %s' % ( i , len ( particles ) , key , d ) )        
         if not d:
-            logger.warning ( 'No useful data is found for %s' % key )
+            no_data.add ( key ) 
             continue
 
         data [ key ] = d
         loaded += len ( d.files )
-        
+    if no_data : logger.warning ( 'No useful data is found for %s' % list ( no_data ) )
+
     return data
 
 
@@ -1112,9 +1120,9 @@ class PidCalibTask(Task) :
         ## unpack configuration
         key , name , files , use_frame , _  = item 
 
-        import ROOT
         import ostap.core.pyrouts        
         import ostap.io.root_file
+        import ROOT
 
         data = ROOT.TChain  ( name )
         for f in files : data.Add ( f )
@@ -1621,9 +1629,10 @@ def pid_calib ( FUNC , config ) :
             
             jobs = []            
             for key in  data :
-                dk   = data [ key ] 
-                name = dk.chain_name
-                for chunk in chunked ( dk.files , chunk_size ) :
+                dk    = data [ key ] 
+                name  = dk.chain_name
+                csize = min ( chunk_size , len ( dk.files ) // 4 ) 
+                for chunk in chunked ( dk.files , csize ) :
                     row   = key , name , chunk   
                     jobs.append ( row )
                     
@@ -1754,7 +1763,7 @@ def pid_calib ( FUNC , config ) :
     if config.Parallel and not config.UseFrame :
 
         task       = PidCalibTask  ( fun            )
-        chunk_size = config.ChunkSize if 1 <= config.ChunkSize else 20
+        chunk_size = config.ChunkSize if 1 <= config.ChunkSize else 30
 
         from ostap.parallel.parallel import WorkManager 
         wmgr = WorkManager   ( silent = not config.verbose , progress = True )
@@ -1762,7 +1771,8 @@ def pid_calib ( FUNC , config ) :
         for key in  data :
             dk    = data [ key ] 
             name  = dk.chain_name
-            for chunk in chunked ( dk.files , chunk_size ) :
+            csize = min ( chunk_size , len ( dk.files ) // 4 )
+            for chunk in chunked ( dk.files , csize ) :
                 row   = key , name , chunk , config.UseFrame , False
                 jobs.append ( row )
                 
