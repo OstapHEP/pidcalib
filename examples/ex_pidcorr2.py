@@ -48,6 +48,7 @@ requests = [
 pcorr = PidCorr ( 'Sim09' ,
                   local_storage    = "./templates/"    ,  # Directory for local template storage, used when the template is not available in 
                   local_mc_storage = "./mc_templates/" ,  # Directory for local template storage, used when the template is not available in
+                  verbose          = -2 , 
                  ) 
 pcorr.process   ( requests , progress = True  , report = True , parallel  = True ) 
 
