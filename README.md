@@ -1,11 +1,15 @@
-# pidcalib : The efficient processing of LHCb/PidCalib PID calibration data  using [ostap] project 
-Actually it is just a tiny wrapper over [pidgen2] package by Antom Polurktov
+# pidcalib
+
+
+The efficient processing of LHCb/PidCalib PID calibration data  using [ostap] project 
+Actually it is just a tiny wrapper over
+    [pidgen2] package by Antom Poluektov @apoluekt and [pidlicab2] package by Daniel Chervenkov @dcervenkov  
     
 ## Dependencies
 
 - _mandatory_: [ostap] 
 - _mandatory_: [pidgen2] 
-- _mandatory_: [pidcalib22]
+- _mandatory_: [pidcalib2]
     
 
 ## PidGen
