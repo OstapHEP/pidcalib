@@ -92,16 +92,16 @@
 #
 #  @endcode
 #
-#    `PidCorr` feeds the `pidgen2.correct` function with following arguments 
-#        - `input` 
-#        - `sample`
-#        - `dataset`
-#        - `variable`
-#        - `branches`
-#        - `output`
-#        - `outtree` 
-#        - `pidcorr`
-#        - `friend` 
+#  Track multiplicity can be specified in four different ways :
+#   - as a variable in the input TTree, e.g. `nTracks`
+#   - as an expression in the input TTree, e.g. scaled verison `nTracks*1.15`
+#   - as a 1D-historgam with #track sdistribitionis in data. The actual #track will be smapled from this histograms (ignoring x<0)
+#   - as a sequence/containe of some non-negative numbers. he actual #track will be smapled from this histograms (ignoring x<0) 
+# 
+#  `PidCorr` feeds the `pidgen2.correct` function with following arguments 
+#     - `sample`
+#     - `dataset`
+#     - `variable`
 #
 #  All other arguments can be provided via `PidCorr` constructor
 #    
@@ -201,17 +201,16 @@
   >>> pcorr = PidCorr ( simversion = 'Sim09' , ... ) 
   >>> pcorr.process ( requests , report = True , progress = True , parallel = True ) 
     
-    
+  Track multiplicity can be specified in four different ways :
+   - as a variable in the input TTree, e.g. `nTracks`
+   - as an expression in the input TTree, e.g. scaled verison `nTracks*1.15`
+   - as a 1D-historgam with #track sdistribitionis in data. The actual #track will be smapled from this histograms (ignoring x<0)
+   - as a sequence/containe of some non-negative numbers. he actual #track will be smapled from this histograms (ignoring x<0) 
+     
   `PidCorr` feeds the `pidgen2.correct` function with following arguments 
-     - `input` 
      - `sample`
      - `dataset`
      - `variable`
-     - `branches`
-     - `output`
-     - `outtree` 
-     - `pidcorr`
-     - `friend` 
 
   All other arguments can be provided via `PidCorr` constructor
 
@@ -243,7 +242,7 @@ from   ostap.utils.progress_bar import progress_bar
 from   ostap.parallel.task      import Task
 import ostap.utils.cleanup      as     CU 
 import ostap.trees.trees
-import pidgen2, ROOT, numpy, re  
+import pidgen2, ROOT, numpy, random, re  
 # =============================================================================
 assert (3,0,0,4) <= ostap_info , "OStap versiopm *MUST* be >= 3.0.0.4!"
 # =============================================================================
@@ -298,23 +297,42 @@ class PidBase(object) :
     ## arguments to be forwarded to pidgen2
     #  @see pidgen2.correct.correct
     #  @see pidgen2.resampler.create_resampler    
-    def __init__ ( self , **kwargs ) :
+    def __init__ ( self , nTrk_name = 'nTracks' , **kwargs ) :
         """ Arguments to be forwarded to pidgen2
         - see pidgen2.correct.correct
         - see pidgen2.resampler.create_resampler    
         """
-        kw = { 'verbose' : -1 ,
-               'nan'     : -1 ,
-               'kernel'  : ("default", 0)
+        kw = { 'verbose'   : -2                ,
+               'nan'       : -1                ,
+               'plot'      : False             ,
+               'usecache'  : False             ,
+               'kernel'    : ( "default" , 0 ) ,
               }
-        kw.update ( kwargs ) 
-        self.__kwargs = kw
-        verbose = self.__kwargs.get ( 'verbose' , 1 ) 
+        kw.update ( kwargs )
+        self.__nTrk_name = nTrk_name 
+        self.__kwargs    = kw
+        
         if not 'local_storage' in kwargs :
             dir1 = CU.CleanUp.tempdir ( prefix = 'ostap-PIDGEN2-templates-'    )
-            if 0 < verbose : logger.info ( 'Local    template storage : %s' % dir1 ) 
-            self.__kwargs [ 'local_storage'    ] = dir1            
-            
+            self.__kwargs [ 'local_storage'    ] = dir1
+            if self.verbose : logger.info ( 'Local    template storage : %s' % dir1 ) 
+    
+    # =========================================================================
+    ## the name of new/resampled `ntrk`  branch
+    @property
+    def nTrk_name ( self ) :
+        """`ntrk_name` : the name of new/resampled #ntrk branch 
+        """
+        return self.__nTrk_name 
+
+    # =========================================================================
+    ## verbose processing?
+    @property
+    def verbose ( self ) :
+        """`verbose` : verbos eprocessing 
+        """
+        return self.__kwargs.get ( 'verbose' , false )
+    
     # =========================================================================
     ## Arguments to be forwarded to pidgen2
     #  @see pidgen2.correct.correct
@@ -370,26 +388,74 @@ class PidBase(object) :
                     "Invalid/non-existing simversion/sample/dataset: %s/%s/%s" % ( simversion , r.sample , r.dataset )
                 
         return True
+    
+    # =========================================================================
+    ## Check a single request
+    def check_request ( self , tree , request ) :
+        """ Check a single request
+        """
+        if not vars_in_tree ( tree , request.pt , request.eta ) : return False
+        if request.outvar in tree :
+            logger.error ( 'Variable %s already in the ROOT.TTree!' % r.outvar )
+            return False
 
+        if isinstance ( request.ntrk , string_types ) :
+            return vars_in_tree ( tree , request.ntrk )
+
+        if not self.good_for_sampling ( request.ntrk ) : 
+            logger.error ( 'Wrong `ntrk` specification: %s ' % typename ( request.ntrk ) ) 
+            return False
+
+        if self.nTrk_name and self.nTrk_name in tree :
+            logger.error ( 'Variable %s already in the ROOT.TTree!' % self.nTrk_name )
+            return False 
+
+        return True
+    
     # =========================================================================
     ## Is the histogram good enough for #ntrk sampling ? 
-    def good_for_sampling ( self , histo ) :
+    def sampling_histo ( self , histo ) :
         """ Is the histigram good for #ntrk sampling ? 
         """
         import ostap.histos.histos
-        
+
         if not isinstance ( histo , ROOT.TH1 ) : return False
-        if not 1 != histo.GetDimension()       : return False 
-        
+        if not 1 == histo.GetDimension()       : return False 
         xmin, xmax = histo.xminmax()
         if xmax < 100                          : return False  ## upper limit cannot be smaller than 100! 
 
         last_bin = len ( histo ) 
-        zero_bin = 1 if 0 <= xmim else nmax ( 1 , histo.FindBin ( 0 ) )
-        if zero_bin < last_bin                 : return False
+        zero_bin = 1 if 0 <= xmin else nmax ( 1 , histo.FindBin ( 0 ) )
+        if last_bin <= zero_bin                 : return False
         #
         return  0 < histo.Integral ( zero_bin , last_bin )
+    # =========================================================================
+    ## Is the object good enough for #ntrk sampling ?
+    #  - 1D-histo with specific setting 
+    #  - sequence of non-negative numbers 
+    def good_for_sampling ( self , obj  ) :
+        """ Is the object good for #ntrk sampling ? 
+        - 1D-histo with specific setting 
+        - sequence of non-negative numbers 
+        """
+        if isinstance ( obj , ROOT.TH1 ) : return self.sampling_histo (  obj )
+        ## otherwise some non-empty sequnce of non-negative numbers 
+        return obj and 10 <= len ( obj ) and isinstance ( obj , sequence_types ) and all ( 0 < int ( v ) for v in obj )
 
+    # =========================================================================
+    ## Generate/sample #ntr array of length N 
+    def sample_ntrk ( self , ntrk , N ) :
+        """ Generate/sample #ntr array of length N 
+        """
+        if not self.good_for_sampling ( ntrk ) : return None
+        ## 
+        if self.sampling_histo ( ntrk ) :
+            sample = tuple ( int ( v ) for v in ntrk.shoot     ( N , lambda s : 0 < s ) )
+        else :
+            sample = tuple ( int ( v ) for v in random.choices ( ntrk , k = N ) )
+        
+        return numpy.asarray ( sample , dtype = numpy.uint16 )
+        
     # =========================================================================
     ## Get data from a single tree 
     def get_data ( self , tree , *vars , ntrk = None ) :
@@ -404,7 +470,7 @@ class PidBase(object) :
             data , _ = tree.slice ( [ v for v in vars ] ,            structured = False , transpose = True ) 
             data     = numpy.column_stack ( [ data , ntrk ] )
         else :
-            raise  TypeError ( "get_data: invalid type  for `ntrk`%s" %typename ( ntrk ) )
+            raise  TypeError ( "get_data: invalid type  for `ntrk` : %s" % typename ( ntrk ) )
 
         return data
     
@@ -428,11 +494,12 @@ class PidBase(object) :
 #
 #  @encode
 #
-#  Number of tracks can be specified in various ways: 
-#  - name        e.g. "nTrack"        - usin the initial #track varibe from MC 
-#  - expression  e.g. "nTrack*1.20"   - scale them by 20%
-#  - 1D-histogram of #ntracks          #ntrk will be sampled fom the histogram
-# 
+#  Track multiplicity can be specified in three different ways ways :
+#   - as a variable in the input TTree, e.g. `nTracks`
+#   - as an expression in the input TTree, e.g. scaled verison `nTracks*1.15`
+#   - as a 1D-historgam with #track sdistribitionis in data. The actual #track will be smapled from this histograms (ignoring x<0)
+#   - as a sequence/containe of some non-negative numbers. he actual #track will be smapled from this histograms (ignoring x<0) 
+#
 #  `PidGen` feeds the `pidgen2.resampler.create_resampler` function with following arguments 
 #        - `sample`
 #        - `dataset`
@@ -462,12 +529,12 @@ class PidGen(PidBase):
     >>> pgen = PidGen ( ... )
     >>> pgen.process ( requests , progress = True , .... ) 
     
-    Number of tracks can be specified in various ways: 
-
-    - name        e.g. "nTrack"        - usin the initial #track varibe from MC 
-    - expression  e.g. "nTrack*1.20"   - scale them by 20%
-    - 1D-histogram of #ntracks         - #ntrk will be sampled fom the histogram
-
+    Track multiplicity can be specified in four different ways :
+     - as a variable in the input TTree, e.g. `nTracks`
+     - as an expression in the input TTree, e.g. scaled verison `nTracks*1.15`
+     - as a 1D-historgam with #track sdistribitionis in data. The actual #track will be smapled from this histograms (ignoring x<0)
+     - as a sequence/containe of some non-negative numbers. he actual #track will be smapled from this histograms (ignoring x<0) 
+     
    `PidGen` feeds the `pidgen2.resampler.create_resampler` function with following arguments 
         - `sample`
         - `dataset`
@@ -555,18 +622,14 @@ class PidGen(PidBase):
         for tree , requests in the_requests  :
             assert isinstance ( tree , ROOT.TTree ) , "Invalid type for `tree` %s" % typename ( tree )
             reqs = self.requests ( requests )
-            assert self.check_requests ( reqs ) , "Invalid/non-exising requests!"            
-            for r in reqs :
-                cvars = ( r.pt , r.eta , r.ntrk ) if isinstance ( r.ntrk , string_types ) else ( r.pt , r.eta ) 
-                if   not vars_in_tree ( tree , *cvars )                                    : return 
-                elif r.outvar in tree :
-                    logger.error ( 'Variable %s already in the ROOT.TTree, skip processing!' % r.outvar )
-                    return
-                for f in tree.files () :
-                    if not printed and '/eos/' in f :
-                        logger.warning ( 'EOS is *NOT* a reliable storage for safe modification of data!' )
-                        printed = True
-
+            assert self.check_requests ( reqs ) , "Invalid/non-exising requests!"
+            ## more check for requests, this time  one-by-one 
+            if any ( not self.check_request ( tree , r ) for r in requests ) : return 
+            for f in tree.files :
+                if not printed and '/eos/' in f :
+                     logger.warning ( 'EOS is *NOT* a reliable storage for safe modification of data!' )
+                     printed = True
+                    
                         
         NR             = len ( the_requests )        
         local_progress = progress and 10 <= NR 
@@ -611,11 +674,15 @@ class PidGen(PidBase):
         ## (3)  more checks the requests
         for r in requests :
             if r.outvar in tree :
-                logger.error ( 'Variable %s already in the TTree, skip processing!' % r.outvar )
-                return tree 
-            
+                logger.error ( 'Variable %s already in the ROOT.TTree, skip processing!' % r.outvar )
+                return tree
+            elif isinstance ( r.ntrk, string_types ) : pass
+            elif self.good_for_sampling ( r.ntrk ) and self.nTrk_name and self.nTrk_name in tree :
+                logger.error ( 'Variable %s already in the ROOT.TTree, skip processing!' % self.nTrk_name )
+                return                                
+                        
         ## (4) chain processing ?
-        if isinstance ( tree , ROOT.TChain ) and 1 < tree.nFiles () :
+        if isinstance ( tree , ROOT.TChain ) and 1 < tree.nFiles :
             return self.__run_chain ( tree     ,
                                       requests , 
                                       progress = progress ,
@@ -623,7 +690,7 @@ class PidGen(PidBase):
                                       silent   = silent   , 
                                       parallel = parallel , **kwargs )
 
-        the_file = tree.files()[0]
+        the_file = tree.files [ 0 ]
         
         ## number of entries 
         N = len ( tree )
@@ -643,13 +710,12 @@ class PidGen(PidBase):
                 logger.info ( 'Processing request: variable/sample/dataset : %s/%s %s' % ( request.variable ,
                                                                                            request.sample   ,
                                                                                            request.dataset  ) ) 
-            ## recipes to access pt, eta and ntrk varibales 
+            ## recipes to access pt, eta and ntrk variables 
             pt , eta , ntrk = request.pt , request.eta , request.ntrk
-                
-            ## special case: if ntrk is a histogram, sample from this histogram!
-            if self.good_for_sampling ( ntrk ) and sampled_ntrk is None :
-                ## generate #ntrk from the supplied histogram 
-                sampled_ntrk = numpy.asarray ( [ int ( v ) for v in ntrk.shoot ( N , lambda s : 0 < s ) ] , dtype = numpy.float )
+            
+            ## sample ntrk if requested
+            if sampled_ntrk is None and not isinstance ( ntrk , string_types ) :
+                sampled_ntrk = self.sample_ntrk ( ntrk , N = N )
                 
             ## get the data 
             data = self.get_data ( tree , pt , eta , ntrk = ntrk if sampled_ntrk is None else sampled_ntrk )
@@ -660,10 +726,14 @@ class PidGen(PidBase):
                               request.dataset  ,
                               request.variable ) 
 
-            
             ## collect the results 
             results [ request.outvar ] = pids 
 
+        
+        ## addd #ntrk is requested
+        if not sampled_ntrk is None and self.nTrk_name :
+            results [ self.nTrk_name ] = sampled_ntrk 
+            
         ## add result to TTree:
         return tree.add_new_buffer ( results , report = report , progress = progress )
 
@@ -698,7 +768,7 @@ class PidGen(PidBase):
                 return chain 
 
         ## (4) simple tree ?
-        if not isinstance ( chain  , ROOT.TChain ) or 2 > chain .nFiles() :
+        if not isinstance ( chain  , ROOT.TChain ) or 2 > chain .nFiles  :
             return self.run ( chain    ,
                               requests , 
                               progress = progress ,
@@ -711,7 +781,7 @@ class PidGen(PidBase):
         ## chain name 
         cname = chain.fullpath 
         ## files to be processed 
-        files = chain.files()
+        files = chain.files
 
         ## parallel processing? 
         if parallel and files :
@@ -736,7 +806,7 @@ class PidGen(PidBase):
             down_progress  = progress and 10 >  NR
             
             for fname in progress_bar ( files , silent = not local_progress , description = 'Files:' ) :
-                if not local_progress and not silent : logger.info ( "Processing file: %s" % file ) 
+                if not local_progress and not silent : logger.info ( "Processing file: %s" % fname ) 
                 tree = ROOT.TChain ( cname )
                 tree.Add ( fname ) 
                 ## treat the tree 
@@ -793,6 +863,11 @@ class PidGen(PidBase):
 #  pcorr = PidCorr ( simversion = 'Sim09' , ... )
 #  pcorr.process ( requests , report = True , progress = True , parallel = True ) 
 #
+#  Track multiplicity can be specified in three different ways:
+#   - as a variable in the input TTree, e.g. `nTracks`
+#   - as an expression in the input TTree, e.g. scaled verison `nTracks*1.15`
+#   - as a 1D-historgam with #track sdistribitionis in data. The actual #track will be smapled from this histograms (ignoring x<0)
+#   - as a sequence/containe of some non-negative numbers. he actual #track will be smapled from this histograms (ignoring x<0) 
 #  @endcode
 # 
 #  IMPORTANT: It updates the input data, therefore
@@ -832,16 +907,16 @@ class PidCorr(PidBase) :
     For input data-chais one cna create TChani manualy (as shown above) or 
     using ostap.trees.data.Data utility 
     
+    Track multiplicity can be specified in four different ways :
+     - as a variable in the input TTree, e.g. `nTracks`
+     - as an expression in the input TTree, e.g. scaled verison `nTracks*1.15`
+     - as a 1D-historgam with #track sdistribitionis in data. The actual #track will be smapled from this histograms (ignoring x<0)
+     - as a sequence/containe of some non-negative numbers. he actual #track will be smapled from this histograms (ignoring x<0) 
+     
     `PidCorr` feeds the `pidgen2.correct` function with following arguments 
-        - `input` 
         - `sample`
         - `dataset`
         - `variable`
-        - `branches`
-        - `output`
-        - `outtree` 
-        - `pidcorr`
-        - `friend` 
 
     All other arguments can be provided via `PidCorr` constructor
     
@@ -868,7 +943,8 @@ class PidCorr(PidBase) :
     # - `friend` 
     # 
     # All other arguments can be provide via `PidCorr` constructor    
-    def __init__ ( self , simversion , **kwargs ) :
+    def __init__ ( self       ,
+                   simversion , **kwargs ) :
         """ `PidCorr` feeds the `pidgen2.correct` function with following arguments 
         - `input` 
         - `sample`
@@ -881,21 +957,15 @@ class PidCorr(PidBase) :
 
         All other arguments can be provide via `PidCorr` constructor
         """
-        kw = {
-            'simversion'  : simversion , 
-            ## 'library'     : 'ak'       ,
-            'plot'        : False      ,
-            ## 'eta_from_p'  : False      ,
-            'usecache'    : True       , 
-            'verbose'     : -1         , 
-        }
-        kw.update ( kwargs ) 
-        verbose = kw.get ( 'verbose' , 0 ) 
+        kw = { 'simversion'  : simversion }
+        kw.update ( kwargs )
+        dir2 = ''
         if not 'local_mc_storage' in kw :
             dir2 = CU.CleanUp.tempdir ( prefix = 'ostap-PIDGEN2-mc_templates-' )
-            if 0 < verbose : logger.info ( 'Local mc_template storage : %s' % dir2 ) 
             kw [ 'local_mc_storage' ] = dir2            
-        super().__init__ ( **kw ) 
+        super().__init__ ( **kw )
+        ## 
+        if dir2 and self.verbose : logger.info ( 'Local mc_template storage : %s' % dir2 ) 
 
     # =========================================================================
     ## Create the correctie and run the pidgen2 machinery
@@ -947,21 +1017,24 @@ class PidCorr(PidBase) :
         for tree , requests in the_requests  :
             assert isinstance ( tree , ROOT.TTree ) , "Invalid type for `tree` %s" % typename ( tree )
             reqs = self.requests ( requests )
-            assert self.check_requests ( reqs , self.kwargs.get ( 'simversion', '' ) ) , "Invalid/non-exising requests!"            
-            outvars = set() 
+            assert self.check_requests ( reqs , self.kwargs.get ( 'simversion', '' ) ) , "Invalid/non-exising requests!"
+            ## more check for requests, this time  one-by-one 
+            if any ( not self.check_request ( tree , r ) for r in requests ) : return
+            if any ( not vars_in_tree ( tree , r.invar ) for r in requests ) : return 
+                
+            ## more checks..
+            outvars = set()
             for r in reqs :
-                if   not vars_in_tree ( tree , r.invar , r.pt , r.eta , r.ntrk ) : return    ## RETURN 
-                elif r.outvar in tree :
-                    logger.error ( 'Variable %s already in the TTree, skip processing!' % r.outvar )
-                    return                                                           ## RETURN 
-                elif r.outvar in outvars :
+                if r.outvar in outvars :
                     logger.error ( 'Variable %s defined twice!' % r.outvar )
-                    return                                                           ## RETURN 
-                outvars.add ( r.outvar ) 
-            for f in tree.files () :
+                    return                                                           ## RETURN                
+                outvars.add ( r.outvar )
+                     
+            for f in tree.files :
                 if not printed and '/eos/' in f :
-                    logger.warning ( 'EOS if not  areliable storage for safe modification of data!' )
-                    printed = True 
+                     logger.warning ( 'EOS is *NOT* a reliable storage for safe modification of data!' )
+                     printed = True
+
                     
         NR              = len ( the_requests )        
         local_progress  = progress and 10 <= NR 
@@ -1002,20 +1075,30 @@ class PidCorr(PidBase) :
         ## (2) check the configurtaion of requests 
         requests = self.requests ( requests )
 
+        ## (3)  more checks the requests
+        for r in requests :
+            if r.outvar in tree :
+                logger.error ( 'Variable %s already in the ROOT.TTree, skip processing!' % r.outvar )
+                return tree
+            elif isinstance ( r.ntrk, string_types ) : pass
+            elif self.good_for_sampling ( r.ntrk ) and self.nTrk_name and self.nTrk_name in tree :
+                logger.error ( 'Variable %s already in the ROOT.TTree, skip processing!' % self.nTrk_name )
+                return                                
+        
         ## (3) chain processing ?
-        if isinstance ( tree , ROOT.TChain ) and 1 < tree.nFiles() :
+        if isinstance ( tree , ROOT.TChain ) and 1 < tree.nFiles :
             return self.__run_chain ( tree     ,
                                       requests = requests ,
                                       progress = progress ,
                                       report   = report   ,
                                       silent   = silent   , 
                                       parallel = parallel , **kwargs )
+
         
         ## (4) single tree processing
         
-        the_file = tree.files()[0]
+        the_file = tree.files [ 0 ]
         the_path = tree.full_path
-
 
         results  = {}
         
@@ -1033,12 +1116,11 @@ class PidCorr(PidBase) :
                                                                                            request.dataset  ) )
             ## unpack                
             invar , pt , eta, ntrk = request.invar , request.pt , request.eta , request.ntrk
+            
+            ## sample ntrk if requested
+            if sampled_ntrk is None and not isinstance ( ntrk , string_types ) :
+                sampled_ntrk = self.sample_ntrk ( ntrk , N = N ) 
 
-            ## special case: if ntrk is a histogram, sample from this histogram!
-            if self.good_for_sampling ( ntrk ) and sampled_ntrk is None :
-                ## generate #ntrk from the supplied histogram 
-                sampled_ntrk = numpy.asarray ( [ int ( v ) for v in ntrk.shoot ( N , lambda s : 0 < s ) ] , dtype = numpy.float )
-                
             ## get the data 
             data = self.get_data ( tree , invar , pt , eta , ntrk = ntrk if sampled_ntrk is None else sampled_ntrk )
             
@@ -1050,40 +1132,11 @@ class PidCorr(PidBase) :
             
             ## collect the results 
             results [ request.outvar ] = pids 
- 
-            """ 
-            branches = tuple ( _name_to_awk_ ( n ) for n in ( invar , pt , eta , ntrk ) ) 
-            
-            ## the output file
-            ## output   = CU.CleanUp.tempfile ( prefix = 'ostap-PIDGEN2-%s-%s-%s-' % ( request.variable ,
-            ##                                                                        request.sample   ,
-            ##
-            with CU.TempFile ( prefix = 'ostap-PIDGEN2-%s-%s-%s-' % ( request.variable ,
-                                                                      request.sample   ,
-                                                                      request.dataset  ) , suffix = '.root' ) as output :
-                ## (1) run the pidcorr machinery 
-                from pidgen2.correct import correct
-                correct  ( input    = input            ,
-                           sample   = request.sample   ,
-                           dataset  = request.dataset  ,
-                           variable = request.variable , 
-                           branches = branches         , 
-                           output   = output           , 
-                           outtree  = the_path         ,
-                           pidcorr  = request.outvar   , 
-                           friend   = True             , **self.kwargs )
-                
-                ## (2) Access the produced output friend tree
-                chfr = ROOT.TChain ( the_path )
-                chfr.Add ( output )
-                
-                ## good branches 
-                obranches = chfr.branches ( '%s.*' % request.outvar  )
-                data, _   = chfr.slice ( obranches , structured = True )
-                
-                for n in data.dtype.names : results [ n ] = data [ n ]
-            """
-           
+
+        ## addd #ntrk is requested
+        if not sampled_ntrk is None and self.nTrk_name :
+            results [ self.nTrk_name ] = sampled_ntrk 
+   
         chain = ROOT.TChain ( the_path )
         chain.Add ( the_file ) 
         return chain.add_new_buffer ( results , report = report , progress = progress ) 
@@ -1106,7 +1159,7 @@ class PidCorr(PidBase) :
         
         ## (1) check chain/tree 
         assert isinstance ( chain , ROOT.TTree  ) , "Invalid `chain` type: %s" % typename ( chain )
-        if not isinstance ( chain , ROOT.TChain ) or 2 > chain.nFiles() :
+        if not isinstance ( chain , ROOT.TChain ) or 2 > chain.nFiles  :
             return self.run ( chain    ,
                               requests = requests ,
                               silent   = silent   ,
@@ -1127,7 +1180,7 @@ class PidCorr(PidBase) :
         ## chain full name 
         cname = chain.fullpath 
         ## files to be processed 
-        files = chain.files()
+        files = chain.files 
 
         ## parallel processing 
         if parallel and files :

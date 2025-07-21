@@ -5,15 +5,10 @@ Actually it is just a tiny wrapper over [pidgen2] package by Antom Polurktov
 
 - _mandatory_: [ostap] 
 - _mandatory_: [pidgen2] 
+- _mandatory_: [pidcalib22]
+    
 
-
-Most likely all `pidcalib` machinery is obsolete now (2025)
-but the `pidgen2` functionality is just updated
-
-
-## `pidgen1`
-
-### PidGen
+## PidGen
 ```
   ## input MC data to be resampled 
 
@@ -35,7 +30,9 @@ but the `pidgen2` functionality is just updated
   >>> pgen.process     ( requests , progress = True , report = True , parallel = True )
     
 ```
-### PidCorr 
+
+    
+## PidCorr 
 ```
         
     ## input MC-data to be corrected 
@@ -60,71 +57,51 @@ but the `pidgen2` functionality is just updated
 
 ```
 
-
+## PidCalib
     
-## Features
-
-- The project allows to get 1D, 2D or 3D efficiency historgams for particle identification using the calibraton samples 
-- Calibration samples can be accessed either from CERN eos or via GRID 
-  - the first way requires read access to `/eos/lhcb/grid` partition 
-  - the second way require to have valid Grid proxy and access to LHCbDirac machinery via cernvmfs 
-  - both conditions are satisfied on CERN   machines, `lxplus.cern.ch` in particular 
-- The calbration samples can be processed in parallel using [pathos]-based parallelisation
-- The output histograms and useful processing information are placed in the outptu database, default is `PIDCALIB.db`   
-
-## Usage
-
-### Run II processing 
-
-To use this function a helper script needs to be created, see example in [examples] directory.
-The script to be execute from command-line 
 ```
-pid_calib2.py 
-```
-All command-line arguments can be inspected using `-h` flag
-```
-ex_pidcalib_run2.py -h
-```
+    
+ >>> h1D = ROOT.TH1D ( ... )#
+ >>> request1 = PARTICLE_1D ( 'Pi'                             , ## particle type 
+ ...                          'probe_MC15TuneV1_ProbNNpi>0.5 ' , ## criterion to be tested
+ ...                          'Turbo18'                        , ## data sample
+ ...                          'up'                             , ## magnet polarity
+ ...                          ""                               , ## additional cuts
+ ...                          h1D                             , ## 1D template histogram
+ ...                         'log10(probe_P/1000)'             ) ## the x-axis variable
 
-- If calibration samples to be taken from the Grid, one needs to ensure that scripts in the directory [scripts] are in the path, e.g. 
-```
-PATH=$PATH:<...>/scripts ex_pidcalib_run2.py ... 
-```
-Also for this mode one needs 
- - access to LHCbDirac at `cernvmfs`, see the content of `dirac-command` script in [scripts] directory  
- - valid Grid proxy 
 
-- In case `/eos/lhcb/grid` is accessible directly, no Grid proxy and machinery is requred. 
-In this mode, a powerfull [pathos]-based parallelization is available, activated with `-z/--parallel` keys
-```
-ex_pidcalib_run2.py --parallel 
-```
+ >>> h2D = ROOT.TH2D ( ... ) 
+ >>> request2 = PARTICLE_2D ( 'Pi'                             , ## particle type 
+ ...                          'probe_MC15TuneV1_ProbNNpi>0.5 '  , ## criterion to be tested
+ ...                         'Turbo18'                         , ## data sample
+ ...                         'up'                              , ## magnet polarity
+ ...                          ""                               , ## additional cuts
+ ...                          h2D                              , ## 1D template histogram
+ ...                         'log10(probe_P/1000)'             , ## the x-axis variable
+ ...                         'probe_ETA'                       ) ## the y-axis variable
 
-- If `/eos/lhcb/grid` is accessible directly, but input data are requested from the Grid, the optional conversion using the comman line flag `--useeos` is possible. It opens a way for the parallel processing.
 
-### Run I processing 
+ >>> h3D = ROOT.TH3D ( ... ) 
+ >>> request3 = PARTICLE_3D ( 'Pi'                             , ## particle type 
+ ...                         'probe_MC15TuneV1_ProbNNpi>0.5 '  , ## criterion to be tested
+ ...                         'Turbo18'                         , ## data sample
+ ...                         'up'                              , ## magnet polarity
+ ...                          ""                               , ## additional cuts
+ ...                          h3D                              , ## 1D template histogram
+ ...                         'log10(probe_P/1000)'             , ## the x-axis variable
+ ...                         'probe_ETA'                       , ## the y-axis variable
+ ...                         'nSPDhits'                        ) ## the z-axis variable
+
+
+ - The requests have only one important method: `process`
+
  
-
-```
-ex_pidcalib_run11.py  P -s 20 -p MagUp -c 'P_hasRich==1'
-```
-
-## PidGen processing 
-
-It is important to have an environment consuisten with Urania-environment
-e.g. choose Urania/v10r1 
-
-```
-lb-set-platform x86_64_v2-centos7-gcc11-opt
-... build ostap with LCG_101 ... 
-
+ >>> efficiency , accepted, rejected = request.process ( silent    = False , ## silent processing  ?
+    
 ```
 
-
+   
 [ostap]: https://github.com/OstapHEP/ostap
 [pidgen2]: https://pypi.org/project/pidgen2/
-
-[pidcalib]: https://github.com/OstapHEP/pidcalib
-[examples]: https://github.com/OstapHEP/pidcalid/examples
-[scripts]: https://github.com/OstapHEP/pidcalid/scripts
-[pathos]: https://github.com/uqfoundation/pathos
+[pidcalib2]: https://pypi.org/project/pidcalib2/
