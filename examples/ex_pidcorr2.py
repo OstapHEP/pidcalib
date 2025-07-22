@@ -8,6 +8,7 @@
 # =============================================================================
 from   ostap.trees.data      import Data
 from   ostap.plotting.canvas import use_canvas
+import ostap.io.root_file 
 import ROOT, random 
 # ==========================================================================================
 from   ostap.logger.logger import getLogger
@@ -37,6 +38,9 @@ for i in range ( 50000 ) : hTracks.Fill ( random.gammavariate ( 3.3 , 55 ) )
 ## (2)Sample @ntracks from aform data sequence
 dTracks = tuple ( random.gammavariate ( 3.3 , 55 ) for i in range ( 10000 ) ) 
 
+## (3) real #ntracks distribtion from B+ =>  (psi' -> J/psi pi+ pi-) K+ decays
+with ROOT.TFile( '../data/nTracks.root' , 'r' ) as rf :
+    hRun2 = rf['nTracks_Run2'].clone() 
 
 requests = [
     ## use expression to specify #ntarcks
@@ -48,9 +52,9 @@ requests = [
     ## sample #ntracks from some data sequence 
     ( mc18d.chain , ( Correct( 'ann_pion[0]' , 'PID_pi1' , 'pi_Dstar2Dpi' , 'MagDown_2018' , 'MC15TuneV1_ProbNNpi' , 'pt_pion[0]*1000' , 'eta_pion[0]' , dTracks   ) , 
                       Correct( 'ann_pion[1]' , 'PID_pi2' , 'pi_Dstar2Dpi' , 'MagDown_2018' , 'MC15TuneV1_ProbNNpi' , 'pt_pion[1]*1000' , 'eta_pion[1]' , dTracks   ) ) ) ,
-    ## expression
-    ( mc18u.chain , ( Correct( 'ann_pion[0]' , 'PID_pi1' , 'pi_Dstar2Dpi' , 'MagUp_2018'   , 'MC15TuneV1_ProbNNpi' , 'pt_pion[0]*1000' , 'eta_pion[0]' , 'nTracks*1.15' ) , 
-                      Correct( 'ann_pion[1]' , 'PID_pi2' , 'pi_Dstar2Dpi' , 'MagUp_2018'   , 'MC15TuneV1_ProbNNpi' , 'pt_pion[1]*1000' , 'eta_pion[1]' , 'nTracks*1.15' ) ) ) ,
+    ## real historgam
+    ( mc18u.chain , ( Correct( 'ann_pion[0]' , 'PID_pi1' , 'pi_Dstar2Dpi' , 'MagUp_2018'   , 'MC15TuneV1_ProbNNpi' , 'pt_pion[0]*1000' , 'eta_pion[0]' , hRun2     ) , 
+                      Correct( 'ann_pion[1]' , 'PID_pi2' , 'pi_Dstar2Dpi' , 'MagUp_2018'   , 'MC15TuneV1_ProbNNpi' , 'pt_pion[1]*1000' , 'eta_pion[1]' , hRun2     ) ) ) ,
 ]
 
 pcorr = PidCorr ( 'Sim09' ,
